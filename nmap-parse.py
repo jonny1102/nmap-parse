@@ -26,6 +26,7 @@ OPT_SERVICE_FILTER = "service_filter"
 OPT_PORT_FILTER = "port_filter"
 OPT_HOST_FILTER = "host_filter"
 OPT_VERBOSE = "verbose"
+OPT_RAW = "raw"
 
 PORT_OPT_DEFAULT = "default"
 PORT_OPT_TCP = "tcp"
@@ -689,7 +690,7 @@ class InteractivePrompt(Cmd):
 
     def complete_ports(self, text, line, begidx, endidx):
         return self.basic_complete(text, line, begidx, endidx,PORT_OPTIONS)
-        
+
     @with_category(CMD_CAT_NMAP)
     def do_ports(self, inp):
         '''Lists unique ports. Usage "ports [default/tcp/udp/combined]"'''
@@ -699,7 +700,7 @@ class InteractivePrompt(Cmd):
             option = userOp
         printUniquePorts(option)
 
-        
+
     @with_category(CMD_CAT_NMAP)
     def do_import_summary(self, inp):
         '''Displays list of imported files'''
@@ -771,12 +772,25 @@ class InteractivePrompt(Cmd):
     def setOption(self, specifiedOption, value):
         for option in self.userOptions:
             if option[0] == specifiedOption.lower():
-                option[1] = value.replace('"', '')
+                if (option[1] == "bool"):
+                    self.setBoolOption(self, option, specifiedOption, value)
+                else:
+                    option[2] = value.replace('"', '')
+
+    def setBoolOption(self, cmdOption, userOption, value):
+        trueStrings = ["true", "yes", "t", "y", "on", "enabled", "1"]
+        tmpValue = value.lower().strip()
+        result = (tmpValue in trueStrings)
+        cmdOption[2] = True
+        if(cmdOption[0] == OPT_RAW):
+            global printHumanFriendlyText
+            printHumanFriendlyText = not result
+
 
     def getOption(self, specifiedOption):
         for option in self.userOptions:
             if(option[0] == specifiedOption.lower()):
-                return option[1]
+                return option[2]
     
     def getPortFilter(self):
         portFilter = []
