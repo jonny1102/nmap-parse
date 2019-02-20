@@ -34,6 +34,8 @@ PORT_OPT_COMBINED = "combined"
 PORT_OPTIONS = [PORT_OPT_DEFAULT, PORT_OPT_TCP, PORT_OPT_UDP, PORT_OPT_COMBINED]
 
 printHumanFriendlyText = True
+filesFailedToImport = []
+filesImported = []
 mAllHosts = {}
 services = []
 
@@ -56,8 +58,7 @@ services = []
 
 def parseNmapXmlFiles(nmapXmlFilenames):
     # Store list of successfully loaded files and failed to load files
-    failed_files = []
-    success_files = []
+    global filesFailedToImport, filesImported
     count = 0
     colourSupport = supportsColour()
     # Loop through all nmap xml files
@@ -83,10 +84,10 @@ def parseNmapXmlFiles(nmapXmlFilenames):
         try:
             nmap_xml = ET.parse(nmapXmlFilename)
         except:
-            failed_files.append(nmapXmlFilename)
+            filesFailedToImport.append(nmapXmlFilename)
             continue
         # Record that file successfully loaded
-        success_files.append(nmapXmlFilename)
+        filesImported.append(nmapXmlFilename)
         # Find all hosts within xml file
         for xHost in nmap_xml.findall('.//host'):
             # Get IP address
@@ -120,10 +121,16 @@ def parseNmapXmlFiles(nmapXmlFilenames):
                     addService(curService, ip, curPortId)
     
     # Output successfully loaded and any failed files
-    sprint("Successfully loaded " + str(len(success_files)) + " files")
-    if len(failed_files) > 0:
+    printImportSummary(False)
+
+def printImportSummary(detailed=True):
+    if(detailed):
+        for file in filesImported:
+            sprint("Successfully loaded " + file)
+    sprint("Successfully loaded " + str(len(filesImported)) + " files")
+    if len(filesFailedToImport) > 0:
         eprint("The following files failed to parse:")
-        for file in failed_files:
+        for file in filesFailedToImport:
             eprint("\t" + file)
 
 # Add specified service to global variable
@@ -533,10 +540,11 @@ class InteractivePrompt(Cmd):
     allow_cli_args = False
 
     userOptions = [
-        [OPT_SERVICE_FILTER,  "", "Comma seperated list of services to show, e.g. \"http,ntp\""],
-        [OPT_PORT_FILTER,  "", "Comma seperated list of ports to show, e.g. \"80,123\""],
-        [OPT_HOST_FILTER,  "", "Comma seperated list of hosts to show, e.g. \"127.0.0.1,127.0.0.2\""],
-        [OPT_VERBOSE,  "False", "Shows verbose service information"]
+        [OPT_SERVICE_FILTER, "string", "", "Comma seperated list of services to show, e.g. \"http,ntp\""],
+        [OPT_PORT_FILTER, "string", "", "Comma seperated list of ports to show, e.g. \"80,123\""],
+        [OPT_HOST_FILTER, "string","", "Comma seperated list of hosts to show, e.g. \"127.0.0.1,127.0.0.2\""],
+        [OPT_VERBOSE, "bool", "False", "Shows verbose service information"],
+        [OPT_RAW, "bool", "False", "Shows raw output (no headings)"]
     ]
 
     def __init__(self, *args, **kwargs):
@@ -636,7 +644,7 @@ class InteractivePrompt(Cmd):
         '''"show options" will list current user options'''
         if(inp.lower() == 'options'):
             print()
-            print(tabulate(self.userOptions, headers=['Setting', 'Value', 'Description'], tablefmt="github"))
+            print(tabulate(self.userOptions, headers=['Setting', "Type", 'Value', 'Description'], tablefmt="github"))
             print()
         else:
             print('"show options" will list current user options')
@@ -676,13 +684,12 @@ class InteractivePrompt(Cmd):
             for option in self.userOptions:
                 if(option[0] == splitText[0].lower()):
                     self.setOption(option[0],splitText[1])
-                    print("Set [" + option[0] + "] ==> '" + option[1] + "'")
+                    print("Set [" + option[0] + "] ==> '" + option[2] + "'")
                     break
 
     def complete_ports(self, text, line, begidx, endidx):
         return self.basic_complete(text, line, begidx, endidx,PORT_OPTIONS)
         
-
     @with_category(CMD_CAT_NMAP)
     def do_ports(self, inp):
         '''Lists unique ports. Usage "ports [default/tcp/udp/combined]"'''
@@ -693,6 +700,23 @@ class InteractivePrompt(Cmd):
         printUniquePorts(option)
 
         
+    @with_category(CMD_CAT_NMAP)
+    def do_import_summary(self, inp):
+        '''Displays list of imported files'''
+        
+        header("Successfully Imported Files")
+        if(len(filesImported) > 0):
+            for file in filesImported:
+                print (file)
+        else:
+            eprint("No files were imported successfully")
+        print()
+
+        if(len(filesFailedToImport) > 0):
+            header("Failed Imports")
+            for file in filesFailedToImport:
+                eprint (file)
+
 
     def complete_unset(self, text, line, begidx, endidx):
         # remove 'unset' from first array slot
@@ -842,6 +866,7 @@ def main():
     parser.add_option("-r","--recurse", dest="recurse", action="store_true", help="Recurse subdirectories if directory provided for nmap files")
     parser.add_option("-i","--interactive", dest="interactive", action="store_true", help="Enter interactive shell")
     parser.add_option("-c","--combine", dest="combine", help="Combine all input files into single nmap-parse compatible xml file")
+    parser.add_option("--imported-files", dest="importedFiles", action="store_true", help="List successfully imported files")
     parser.add_option("-V","--version", dest="version", action="store_true", help="Print version info")
     (options, args) = parser.parse_args()
 
@@ -882,6 +907,11 @@ def main():
 
     # Parse nmap files
     parseNmapXmlFiles(nmapXmlFilenames)
+
+    # Print import summary if requested
+    if options.importedFiles:
+        print()
+        printImportSummary(True)
 
     # Check if default flags were used
     defaultFlags = not options.ipList and not options.aliveHosts and not options.servicelist and not options.verbose and not options.cmd and not options.combine
