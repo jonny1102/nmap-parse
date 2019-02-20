@@ -481,23 +481,6 @@ def supportsColour():
     is_a_tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     return supported_platform and is_a_tty
 
-# class exit_cmd(Cmd,object):
-#     def can_exit(self):
-#         return True
-#     def onecmd(self, line):
-#         r = super (exit_cmd, self).onecmd(line)
-#         if r and (self.can_exit() or
-#            raw_input('exit anyway ? (yes/no):')=='yes'):
-#              return True
-#         return False
-#     def do_exit(self, s):
-#         return True
-#     def help_exit(self):
-#         print("Exit the interpreter.")
-#         print("You can also use the Ctrl-D shortcut.")
-#     do_EOF = do_exit
-#     help_EOF= help_exit
-
 class NmapHost():
     def __init__(self, ip):
         self.ip = ip
