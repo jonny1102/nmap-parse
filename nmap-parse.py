@@ -20,6 +20,8 @@ from cmd2 import Cmd, with_category, argparse_completer
 VERSION = "0.1"
 RELEASE_DATE = "19/02/2019"
 
+PROTOCOLS = ['tcp','udp']
+
 OPT_SERVICE_FILTER = "service_filter"
 OPT_PORT_FILTER = "port_filter"
 OPT_HOST_FILTER = "host_filter"
@@ -211,9 +213,9 @@ def printUniquePorts(option=PORT_OPT_DEFAULT):
         print(re.sub('[\[\] ]','',str(sorted(allPorts))))
 
 # Execute commands
-def executeCommands(cmd):
+def executeCommands(cmd, filters={}):
     hprint('\nRunning Commands\n----------------\n')
-    for ip in sortIpList(mAllHosts):
+    for ip in getHostsThatMatchFilters(filters):
         host = mAllHosts[ip]
         if len(host.ports) > 0:
             executeCommand(cmd, ip)
@@ -232,7 +234,6 @@ def executeCommand(cmd, ip):
         print(output)
 
 def printMatchedIps(includePorts = True, filters={}):
-    protocols = ['tcp','udp']
     matchedHosts = []
 
     colourSupported = supportsColour()
@@ -269,7 +270,7 @@ def printMatchedIps(includePorts = True, filters={}):
     header('Matched IP list')
 
     # Get all hosts that are up and matched filters
-    for ip in sortIpList(mAllHosts):
+    for ip in getHostsThatMatchFilters(filters=filters):
         host = mAllHosts[ip]
         if (not host.alive) or (filterByHost and ip not in hostFilter):
             continue
@@ -278,17 +279,19 @@ def printMatchedIps(includePorts = True, filters={}):
         portsByProto = {}
         matched = False
         # Check ports
-        for protocol in protocols: 
+        for protocol in PROTOCOLS: 
             fullPortsString = ''
             for port in [port for port in host.ports if port.protocol == protocol]:
                 tmpPortString = str(port.portId) 
-                matched = True
+                portMatched = True
                 if filterByPort and (portFilter == [] or port.portId not in portFilter):
-                    matched = False
+                    portMatched = False
                 if filterByService and (serviceFilter == [] or port.service not in serviceFilter):
-                    matched = False
-                if(matched and colourSupported):
-                    tmpPortString = "\033[1;32m" + tmpPortString + "\033[1;m"
+                    portMatched = False
+                if(portMatched):
+                    matched = True
+                    if colourSupported:
+                        tmpPortString = "\033[1;32m" + tmpPortString + "\033[1;m"
                 if len(fullPortsString) > 0:
                     fullPortsString += ","
                 fullPortsString += tmpPortString
@@ -301,6 +304,48 @@ def printMatchedIps(includePorts = True, filters={}):
             print(host[0] + "\t" + host[1])
         else:
             print(host[0])
+
+def getHostsThatMatchFilters(filters={}):
+    filterByHost = False 
+    filterByService = False 
+    filterByPort = False 
+
+    hostFilter = [] 
+    serviceFilter = [] 
+    portFilter = []
+
+    if OPT_HOST_FILTER in filters and len(filters[OPT_HOST_FILTER]) > 0:
+        filterByHost = True
+        hostFilter = filters[OPT_HOST_FILTER]
+
+    if OPT_SERVICE_FILTER in filters and len(filters[OPT_SERVICE_FILTER]) > 0:
+        filterByService = True
+        serviceFilter = filters[OPT_SERVICE_FILTER]
+
+    if OPT_PORT_FILTER in filters and len(filters[OPT_PORT_FILTER]) > 0:
+        filterByPort = True
+        portFilter = filters[OPT_PORT_FILTER]
+
+    matchedHosts = []
+    for ip in sortIpList(mAllHosts):
+        host = mAllHosts[ip]
+        if (not host.alive) or (filterByHost and ip not in hostFilter):
+            continue
+
+        matched = False
+        # Check ports
+        for protocol in PROTOCOLS: 
+            for port in [port for port in host.ports if port.protocol == protocol]:
+                matchedPort = True
+                if filterByPort and (portFilter == [] or port.portId not in portFilter):
+                    matchedPort = False
+                if filterByService and (serviceFilter == [] or port.service not in serviceFilter):
+                    matchedPort = False
+                if matchedPort:
+                    matched = True
+        if matched:
+            matchedHosts.append(ip)
+    return matchedHosts
 
 def printAliveIps():
     hprint('\nAlive IP list\n-------------')
@@ -612,6 +657,13 @@ class InteractivePrompt(Cmd):
                 tmpServices = tmpText.split(',')
                 curService = tmpServices[-1:][0]
                 return self.tryMatchService(curService)
+            elif splitText[0] == OPT_HOST_FILTER:
+                # need to split this value on comma incase user specified more than one IP
+                # then use last split. Also remove quotes
+                tmpText = splitText[1].replace("\"","")
+                tmpHosts = tmpText.split(',')
+                curHost = tmpHosts[-1:][0]
+                return self.basic_complete(curHost, line, begidx, endidx, mAllHosts)
         return [text]
 
     @with_category(CMD_CAT_NMAP)
@@ -782,10 +834,10 @@ def main():
     parser.add_option("-e","--exec", dest="cmd", help="Script or tool to run on each IP remaining after port filter is applied. IP will be appended to end of script command line", metavar="CMD")
     parser.add_option("-l","--iplist", dest="ipList", action="store_true", help="Print plain list of matching IPs")
     parser.add_option("-a","--alive-hosts", dest="aliveHosts", action="store_true", help="Print plain list of all alive IPs")
-    parser.add_option("-s","--servicelist", dest="servicelist", action="store_true", help="Also print list of unique services with names")
+    parser.add_option("-s","--service-list", dest="servicelist", action="store_true", help="Also print list of unique services with names")
     parser.add_option("-S","--host-summary", dest="hostSummary", action="store_true", help="Show summary of scanned/alive hosts")
     parser.add_option("-v","--verbose", dest="verbose", action="store_true", help="Verbose service list")
-    parser.add_option("-u", "--uniqueports", dest="uniquePorts", action="store_true", default=False, help="Print list of unique open ports")
+    parser.add_option("-u", "--unique-ports", dest="uniquePorts", action="store_true", default=False, help="Print list of unique open ports")
     parser.add_option("-R","--raw", dest="raw", action="store_true", help="Only print raw output (no headers)")
     parser.add_option("-r","--recurse", dest="recurse", action="store_true", help="Recurse subdirectories if directory provided for nmap files")
     parser.add_option("-i","--interactive", dest="interactive", action="store_true", help="Enter interactive shell")
@@ -845,7 +897,7 @@ def main():
             printUniquePorts()
 
         if options.ipList:
-            printMatchedIps(filters={OPT_SERVICE_FILTER : serviceFilter, OPT_PORT_FILTER : portFilter, OPT_HOST_FILTER : ['']})
+            printMatchedIps(filters={OPT_SERVICE_FILTER : serviceFilter, OPT_PORT_FILTER : portFilter, OPT_HOST_FILTER : []})
             
         if options.aliveHosts:
             printAliveIps()
@@ -854,7 +906,7 @@ def main():
             printServiceList(options)
 
         if options.cmd:
-            executeCommands(options.cmd)
+            executeCommands(options.cmd, filters={OPT_SERVICE_FILTER : serviceFilter, OPT_PORT_FILTER : portFilter, OPT_HOST_FILTER : []})
 
         if printHumanFriendlyText and (defaultFlags or options.hostSummary):
             hprint("\nSummary\n-------")
