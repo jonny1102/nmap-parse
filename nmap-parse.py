@@ -756,7 +756,7 @@ class InteractivePrompt(Cmd):
         for option in self.userOptions:
             if option[0] == specifiedOption.lower():
                 if (option[1] == "bool"):
-                    self.setBoolOption(self, option, specifiedOption, value)
+                    self.setBoolOption(option, specifiedOption, value)
                 else:
                     option[2] = value.replace('"', '')
 
