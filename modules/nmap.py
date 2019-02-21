@@ -1,4 +1,5 @@
 import copy
+import ipaddress
 
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
@@ -119,7 +120,7 @@ class NmapOutput():
         matchedHosts = []
         for ip in helpers.sortIpList(self.Hosts):
             host = copy.deepcopy(self.Hosts[ip])
-            if (not host.alive) or (filters.hostFilterSet() and ip not in filters.hosts):
+            if (not host.alive) or not filters.checkHost(ip):
                 continue
 
             matched = False
@@ -266,3 +267,27 @@ class NmapFilters():
 
     def serviceFilterSet(self):
         return len(self.services) > 0
+
+    def checkHost(self, ip):
+        # Always return true if no filter is set
+        if not self.hostFilterSet():
+            return True
+        
+        # Check if host matches any ips first
+        matched = ip in [filter.filter for filter in self.hosts if filter.isIp]
+
+        # If no match found, check if host matches any network range
+        if not matched:
+            for filter in [filter for filter in self.hosts if filter.isNetwork]:
+                if ipaddress.ip_address(ip) in ipaddress.ip_network(filter.filter):
+                    matched = True
+                    break
+        
+        return matched
+        # CHECKCKKDSFHDIUGJIUDSG and ip not in filters.hosts)
+
+class NmapHostFilter():
+    def __init__(self, filter, isIp):
+        self.filter = filter
+        self.isIp = isIp
+        self.isNetwork = not isIp

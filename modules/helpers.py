@@ -1,4 +1,4 @@
-import os, re, sys, subprocess
+import os, re, sys, subprocess, ipaddress
 from subprocess import Popen,PIPE
 import xml.etree.ElementTree as ET
 
@@ -113,7 +113,7 @@ def getNmapFiltersString(filters):
     if filters.isFilterSet():
         filterString += getHeader("Output filtered by:")
         if filters.hostFilterSet():
-            filterString += ("Host filter: %s" % (filters.hosts)) + os.linesep
+            filterString += ("Host filter: %s" % ([filter.filter for filter in filters.hosts])) + os.linesep
         if filters.serviceFilterSet():
             filterString += ("Service filter: %s" % (filters.services)) + os.linesep
         if filters.portFilterSet():
@@ -244,3 +244,31 @@ def getFilesInDir(directory, filter='', recurse=False):
     else:
         allFiles.extend([os.path.join(directory, file) for file in os.listdir(directory) if regex.match(os.path.join(directory, file))])
     return allFiles
+
+def stringToHostFilter(filterString):
+    hostFilter = []
+    rawHostFilterString = filterString
+    # Remove any excess white space (start/end/between commas)
+    curHostFilterString = re.sub(r'[^\d\./,]', '', rawHostFilterString)
+    # Split filter on comma, ignore empty entries and assign to filter
+    tmpHostFilter = [ip for ip in curHostFilterString.split(',') if len(ip) > 0]
+    for filter in tmpHostFilter:
+        validFilter = False
+        isIp = False
+        try:
+            ipaddress.ip_address(filter)
+            validFilter = True
+            isIp = True
+        except ValueError:
+            pass
+
+        try:
+            ipaddress.ip_network(filter)
+            validFilter = True
+        except ValueError:
+            pass
+        if(validFilter):
+            hostFilter.append(nmap.NmapHostFilter(filter, isIp))
+        else:
+            eprint("Invalid host filter option ignored: " + filter)
+    return hostFilter

@@ -4,6 +4,7 @@ from cmd2.argparse_completer import ACArgumentParser, ACTION_ARG_CHOICES, AutoCo
 from tabulate import tabulate
 import os, random, re, textwrap
 import argparse
+import ipaddress
 
 from modules import helpers
 from modules import constants
@@ -209,7 +210,7 @@ class InteractivePrompt(Cmd):
         userOp = inp.strip().lower() 
         if(userOp in constants.PORT_OPTIONS):
             option = userOp
-        consoleOutput = helpers.getUniquePortsOutput(self.nmapOutput.Hosts, option)
+        consoleOutput = helpers.getUniquePortsOutput(self.nmapOutput.getHostDictionary(self.getFilters()), option)
         self.printTextOutput(consoleOutput)
 
 
@@ -298,8 +299,16 @@ class InteractivePrompt(Cmd):
             if option[0] == specifiedOption.lower():
                 if (option[1] == "bool"):
                     self.setBoolOption(option, specifiedOption, value)
+                elif(option[0] == constants.OPT_HOST_FILTER):
+                    self.setHostFilter(option, value.replace('"', ''))
                 else:
                     option[2] = value.replace('"', '')
+
+    def setHostFilter(self, option, userFilter):
+        tmpHostFilter = helpers.stringToHostFilter(userFilter.replace('"', ''))
+        filterString = ','.join([filter.filter for filter in tmpHostFilter])
+        option[2] = filterString
+        self.host_filter = filterString
 
     def setBoolOption(self, cmdOption, userOption, value):
         tmpValue = value.lower().strip()
@@ -343,17 +352,9 @@ class InteractivePrompt(Cmd):
             # Split filter on comma, ignore empty entries and assign to filter
             portFilter = [int(port) for port in curPortFilterString.split(',') if len(port) > 0]
         return portFilter
-        
+    
     def getHostFilter(self):
-        hostFilter = []
-        rawHostFilterString = self.host_filter
-        # Check only contains valid chars
-        if(re.match(r'^([\d\s\.,]+)$', rawHostFilterString)):
-            # Remove any excess white space (start/end/between commas)
-            curHostFilterString = re.sub(r'[^\d\.,]', '', rawHostFilterString)
-            # Split filter on comma, ignore empty entries and assign to filter
-            hostFilter = [ip for ip in curHostFilterString.split(',') if len(ip) > 0]
-        return hostFilter
+        return helpers.stringToHostFilter(self.host_filter)
     
     def getServiceFilter(self):
         return [option for option in self.service_filter.split(',') if len(option.strip()) > 0]
