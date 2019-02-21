@@ -245,13 +245,15 @@ class InteractivePrompt(Cmd):
     def do_scanned_hosts(self, inp):
         '''List all hosts scanned'''
         header('Scanned hosts')
-        helpers.printList(self.nmapOutput.Hosts,filename=inp)
+        for line in [host.ip for host in self.nmapOutput.getHosts(self.getFilters(onlyAlive=False))]:
+            self.poutput(line)
 
     @with_category(CMD_CAT_NMAP)
     def do_alive_hosts(self, inp):
-        '''List alive hosts\nUseage: alive_hosts [filename_output]'''
+        '''List alive hosts'''
         header('Alive hosts')
-        helpers.printList(self.nmapOutput.getAliveHosts(),filename=inp)
+        for ip in self.nmapOutput.getAliveHosts(self.getFilters()):
+            self.poutput(ip)
 
     @with_category(CMD_CAT_NMAP)
     def do_unset_all(self, inp):
@@ -359,11 +361,12 @@ class InteractivePrompt(Cmd):
     def getServiceFilter(self):
         return [option for option in self.service_filter.split(',') if len(option.strip()) > 0]
     
-    def getFilters(self):
+    def getFilters(self, onlyAlive=True):
         filters = nmap.NmapFilters()
         filters.services = self.getServiceFilter()
         filters.ports = self.getPortFilter()
         filters.hosts = self.getHostFilter()
+        filters.onlyAlive = onlyAlive
         filters.mustHavePorts = self.have_ports
         return filters
 

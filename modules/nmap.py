@@ -120,7 +120,7 @@ class NmapOutput():
         matchedHosts = []
         for ip in helpers.sortIpList(self.Hosts):
             host = copy.deepcopy(self.Hosts[ip])
-            if (not host.alive) or not filters.checkHost(ip):
+            if ((not host.alive) and filters.onlyAlive) or not filters.checkHost(ip):
                 continue
 
             matched = False
@@ -140,12 +140,12 @@ class NmapOutput():
             if filters.mustHavePorts and len(host.ports) == 0:
                 matched = False
 
-            if matched:
+            if matched or (not filters.onlyAlive):
                 matchedHosts.append(host)
         return matchedHosts
 
-    def getAliveHosts(self):
-        return [ip for ip in self.Hosts if self.Hosts[ip].alive]
+    def getAliveHosts(self, filters):
+        return [host.ip for host in self.getHosts(filters) if host.alive]
 
     def getServices(self, filters=None):
         if filters == None:
@@ -255,6 +255,7 @@ class NmapFilters():
         self.ports = []
         self.services = []
         self.mustHavePorts = True
+        self.onlyAlive = True
 
     def isFilterSet(self):
         return self.hostFilterSet() or self.portFilterSet() or self.serviceFilterSet()

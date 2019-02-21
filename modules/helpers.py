@@ -59,24 +59,6 @@ def getHeader(text):
 def header(text):
     hprint(getHeader(text))
 
-# Print list to console and save to optional filename
-def printList(list, filename=''):
-    try:
-        fhOutput = None
-        if(len(filename) > 0):
-            fhOutput = open(filename, 'w')
-        for item in list:
-            if(fhOutput):
-                fhOutput.write(item + os.linesep)
-            else:
-                print(item)
-        if(fhOutput):
-            print("Output saved to " + filename)
-            fhOutput.close()
-
-    except:
-        eprint("Failed to save output to file: " + filename)
-
 def printUniquePorts(hosts, option=constants.PORT_OPT_DEFAULT):
     textOutput = getUniquePortsOutput(hosts, option)
     textOutput.printToConsole()
