@@ -8,6 +8,7 @@ import argparse
 from modules import helpers
 from modules import constants
 from modules import settings
+from modules import common
 from modules import nmap
 
 from modules.helpers import hprint, sprint, eprint, header
@@ -24,6 +25,7 @@ class InteractivePrompt(Cmd):
     service_filter = ''
     port_filter = ''
     host_filter = ''
+    include_ports = True
     have_ports = True
     verbose = False
     raw = False
@@ -32,9 +34,10 @@ class InteractivePrompt(Cmd):
         [constants.OPT_SERVICE_FILTER, "string", "", "Comma seperated list of services to show, e.g. \"http,ntp\""],
         [constants.OPT_PORT_FILTER, "string", "", "Comma seperated list of ports to show, e.g. \"80,123\""],
         [constants.OPT_HOST_FILTER, "string","", "Comma seperated list of hosts to show, e.g. \"127.0.0.1,127.0.0.2\""],
-        [constants.OPT_HAVE_PORTS, "bool","True", "When enabled, hosts with no open ports are excluded from output [True/False]"],
-        [constants.OPT_VERBOSE, "bool", "False", "Shows verbose service information [True/False]"],
-        [constants.OPT_RAW, "bool", "False", "Shows raw output (no headings) [True/False]"]
+        [constants.OPT_HAVE_PORTS, "bool","True", "When enabled, hosts with no open ports are excluded from output  [ True / False ]"],
+        [constants.OPT_INCLUDE_PORTS, "bool","True", "Toggles whether ports are included in 'list/services' output  [ True / False ]"],
+        [constants.OPT_VERBOSE, "bool", "False", "Shows verbose service information  [ True / False ]"],
+        [constants.OPT_RAW, "bool", "False", "Shows raw output (no headings)  [ True / False ]"]
     ]
 
     def __init__(self, nmapOutput, *args, **kwargs):
@@ -44,6 +47,8 @@ class InteractivePrompt(Cmd):
         self.printRandomBanner()
         self.register_postcmd_hook(self.postCmdHook)
 
+    # Use this to check if the set command was used and do our own internal logic 
+    # in addition to cmd2's logic
     def postCmdHook(self, data: cmd2.plugin.PostcommandData) -> cmd2.plugin.PostcommandData:
         if data.statement.command == 'set' and len(data.statement.args.split()) == 2:
             tmpOption = data.statement.args.split()[0] 
@@ -139,7 +144,7 @@ class InteractivePrompt(Cmd):
     @with_category(CMD_CAT_NMAP)
     def do_list(self, inp):
         '''List all IP's matching filter'''
-        consoleOutput = helpers.getHostListOutput(self.nmapOutput, includePorts=True, filters=self.getFilters())
+        consoleOutput = helpers.getHostListOutput(self.nmapOutput, includePorts=self.include_ports, filters=self.getFilters())
         self.printTextOutput(consoleOutput)
 
 
@@ -194,7 +199,7 @@ class InteractivePrompt(Cmd):
     @with_category(CMD_CAT_NMAP)
     def do_services(self, inp):
         '''Lists all services (supports verbose output)'''
-        consoleOutput = helpers.getServiceListOutput(self.nmapOutput, self.getFilters(), self.verbose)
+        consoleOutput = helpers.getServiceListOutput(self.nmapOutput, filters=self.getFilters(), verbose=self.verbose, includePorts = self.include_ports)
         self.printTextOutput(consoleOutput)
 
     @with_category(CMD_CAT_NMAP)
@@ -248,26 +253,45 @@ class InteractivePrompt(Cmd):
         helpers.printList(self.nmapOutput.getAliveHosts(),filename=inp)
 
     @with_category(CMD_CAT_NMAP)
+    def do_unset_all(self, inp):
+        '''"unset_all" will reset all user options to default values'''
+        consoleOutput = common.TextOutput()
+        for option in [option[0] for option in self.userOptions]:
+            if(self.unsetOption(option)):
+                consoleOutput.addHumn("Unset [" + option + "] ==> " + str(self.getOption(option)))
+            else:
+                consoleOutput.addErrr("Failed to unset [%s]" % option)
+        self.printTextOutput(consoleOutput)
+
+    @with_category(CMD_CAT_NMAP)
     def do_unset(self, inp):
         '''"unset [option]" will unset the specified user option'''
         splitText = inp.split()
         if(len(splitText) != 1):
             print ("Invalid use of unset command")
         else:
-            if(splitText[0].lower() == constants.OPT_HAVE_PORTS):
-                self.have_ports = False
-            elif(splitText[0].lower() == constants.OPT_HOST_FILTER):
-                self.host_filter = ''
-            elif(splitText[0].lower() == constants.OPT_PORT_FILTER):
-                self.port_filter = ''
-            elif(splitText[0].lower() == constants.OPT_RAW):
-                self.raw = False
-            elif(splitText[0].lower() == constants.OPT_SERVICE_FILTER):
-                self.service_filter = ''
-            elif(splitText[0].lower() == constants.OPT_VERBOSE):
-                self.verbose = False
-            
-            print("Unset [" + splitText[0].lower() + "] ==> ''")
+            success = self.unsetOption(splitText[0].lower())  
+            if(success):
+                print("Unset [" + splitText[0].lower() + "] ==> ''")
+
+    def unsetOption(self, option):
+        if(option == constants.OPT_HAVE_PORTS):
+            self.have_ports = False
+        elif(option == constants.OPT_HOST_FILTER):
+            self.host_filter = ''
+        elif(option == constants.OPT_PORT_FILTER):
+            self.port_filter = ''
+        elif(option == constants.OPT_RAW):
+            self.raw = False
+        elif(option == constants.OPT_SERVICE_FILTER):
+            self.service_filter = ''
+        elif(option == constants.OPT_VERBOSE):
+            self.verbose = False
+        elif(option == constants.OPT_INCLUDE_PORTS):
+            self.include_ports = True
+        else:
+            return False
+        return True
 
     def setOption(self, specifiedOption, value):
         for option in self.userOptions:
@@ -301,6 +325,8 @@ class InteractivePrompt(Cmd):
                 option[2] = self.service_filter
             elif(option[0] == constants.OPT_VERBOSE):
                 option[2] = self.verbose
+            elif(option[0] == constants.OPT_INCLUDE_PORTS):
+                option[2] = self.include_ports
 
     def getOption(self, specifiedOption):
         for option in self.userOptions:

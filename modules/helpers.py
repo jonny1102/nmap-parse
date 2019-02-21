@@ -178,7 +178,7 @@ def printImportSummary(nmapOutput, detailed=True):
         for file in nmapOutput.FilesFailedToImport:
             eprint("\t" + file)
 
-def getServiceListOutput(nmapOutput, filters=None, verbose=False):
+def getServiceListOutput(nmapOutput, filters=None, verbose=False, includePorts=True):
     services = nmapOutput.getServices(filters)
     output = common.TextOutput()
     output.addHumn(getHeader('Service List'))
@@ -189,10 +189,16 @@ def getServiceListOutput(nmapOutput, filters=None, verbose=False):
                 first = False
             else:
                 output.addMain("")
-        output.addMain(service.name + " " + str(sorted(service.ports)))
+        svcString = service.name
+        if(includePorts):
+            svcString += " " + str(sorted(service.ports))
+        output.addMain(svcString)
         if verbose:
             for host in service.hosts:
-                output.addMain('  ' + host.ip + " " + str(sorted(host.ports)))
+                hostString = '  ' + host.ip 
+                if(includePorts):
+                    hostString += " " + str(sorted(host.ports))
+                output.addMain(hostString)
     return output
 
 def printServiceList(nmapOutput, filters=None, verbose=False):
