@@ -299,6 +299,7 @@ This script requires python3 and the following modules:
 * tabulate
 * bs4
 * cmd2
+<<<<<<< HEAD
 * cmd2-submenu
 * colorama
 * requests
@@ -308,5 +309,13 @@ This script requires python3 and the following modules:
 These can all be installed via pip with the following command:
 
 	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3 shlex
+=======
+* colorama
+
+These can all be installed via pip with the following command:
+
+	pip install -U IPy tabulate bs4 cmd2 colorama
+        
+>>>>>>> ac74cc96d2ab2d41b60e0487155d7cc0dc222465
         
         
