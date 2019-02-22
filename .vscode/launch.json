@@ -8,9 +8,16 @@
             "name": "Python: Current File (Integrated Terminal)",
             "type": "python",
             "request": "launch",
-            "program": "C:\\shared\\Tools\\Kali\\dev\\nmap-parse\\nmap-parse.py",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Terminal (integrated)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/nmap-parse.py",
             "args": [
-                "C:\\shared\\temp\\combined.xml",
+                "C:\\tmp\\nmap.xml",
                 "-i"
             ],
             "console": "integratedTerminal"

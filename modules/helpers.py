@@ -1,6 +1,7 @@
-import os, re, sys, subprocess, ipaddress
+import os, re, sys, subprocess, ipaddress, time
 from subprocess import Popen,PIPE
 import xml.etree.ElementTree as ET
+import tabulate
 
 from IPy import IP
 
@@ -59,21 +60,24 @@ def getHeader(text):
 def header(text):
     hprint(getHeader(text))
 
-def printUniquePorts(hosts, option=constants.PORT_OPT_DEFAULT):
-    textOutput = getUniquePortsOutput(hosts, option)
+def printUniquePorts(hosts, option=constants.PORT_OPT_DEFAULT, filters=None):
+    textOutput = getUniquePortsOutput(hosts, option, filters=filters)
     textOutput.printToConsole()
 
-def getUniquePortsOutput(hosts, option=constants.PORT_OPT_DEFAULT):
+def getUniquePortsOutput(hosts, option=constants.PORT_OPT_DEFAULT, filters=None):
+    if filters == None:
+        filters = nmap.NmapFilters()
     tcpPorts = set()
     udpPorts = set()
     allPorts = set()
     for ip in hosts:
         host = hosts[ip]
-        tcpPorts = tcpPorts.union(host.getUniquePortIds('tcp'))
-        udpPorts = udpPorts.union(host.getUniquePortIds('udp'))
+        tcpPorts = tcpPorts.union(host.getUniquePortIds('tcp', port_filter=filters.ports, service_filter=filters.services))
+        udpPorts = udpPorts.union(host.getUniquePortIds('udp', port_filter=filters.ports, service_filter=filters.services))
     allPorts = tcpPorts.union(udpPorts)
 
     output = common.TextOutput()
+    output.addHumn(getNmapFiltersString(filters))
     output.addHumn(getHeader('Unique open port list (%s)' % (option)))
     if option == constants.PORT_OPT_DEFAULT:
         output.addHumn(getHeader("TCP:"))
@@ -92,14 +96,18 @@ def getUniquePortsOutput(hosts, option=constants.PORT_OPT_DEFAULT):
 
 def getNmapFiltersString(filters):
     filterString = ""
-    if filters.isFilterSet():
+    if filters.areFiltersSet():
         filterString += getHeader("Output filtered by:")
         if filters.hostFilterSet():
-            filterString += ("Host filter: %s" % ([filter.filter for filter in filters.hosts])) + os.linesep
+            filterString += ("Host filter [host_filter]: %s" % ([filter.filter for filter in filters.hosts])) + os.linesep
         if filters.serviceFilterSet():
-            filterString += ("Service filter: %s" % (filters.services)) + os.linesep
+            filterString += ("Service filter [service_filter]: %s" % (filters.services)) + os.linesep
         if filters.portFilterSet():
-            filterString += ("Port filter: %s" % (filters.ports)) + os.linesep
+            filterString += ("Port filter [port_filter]: %s" % (filters.ports)) + os.linesep
+        if filters.mustHavePorts:
+            filterString += ("Must have ports filter [have_ports]: %s" % str(filters.mustHavePorts)) + os.linesep
+        if filters.onlyAlive:
+            filterString += ("Alive filter [only_alive]: %s" % str(filters.onlyAlive)) + os.linesep
     return filterString
 
 def printNmapFilters(filters):
@@ -254,3 +262,56 @@ def stringToHostFilter(filterString):
         else:
             eprint("Invalid host filter option ignored: " + filter)
     return hostFilter
+
+def getJsonValue(jsonData, id):
+    if id in jsonData:
+        return jsonData[id]
+    else:
+        return ''
+
+def getEpoch():
+    return int(time.time())
+
+def getHostDetails(host):
+    output = common.TextOutput()
+    # Get overview
+    output.addHumn(getHeader("Overview"))
+    output.addMain("IP: %s" % host.ip)
+    if(host.ip != host.hostname):
+        output.addMain("Hostname: %s" % host.hostname)
+    output.addMain("State: %s" % host.getState())
+    openTcp = len(host.getUniquePortIds(constants.PORT_OPT_TCP))
+    openUdp = len(host.getUniquePortIds(constants.PORT_OPT_UDP))
+    output.addMain("TCP ports open: %s" % openTcp)
+    output.addMain("UDP ports open: %s" % openUdp)
+    output.addMain("Total ports open: %s" % (openTcp + openUdp))
+
+    # Output port details
+    output.addHumn(getHeader("Ports / Services"))
+    portTableHeaders = ['Port', 'Protocol', 'Service']
+    output.addMain(tabulate.tabulate([[port.portId, port.protocol, port.service] for port in host.ports], headers = portTableHeaders, tablefmt="github"))
+
+    # Output files found in
+    output.addHumn(getHeader("Files Containing Host"))
+    if(len(host.filesWithHost) == 0):
+        output.addErrr("Host not present within any files")
+    else:
+        for file in host.filesWithHost:
+            output.addMain(file)
+    
+    return output
+
+def wrapText(text, maxChars = 50):
+    wrappedText = ''
+    splitText = text.split()
+    curLine = ''
+    tmpLine = ''
+    for word in splitText:
+        tmpLine = "%s %s" % (curLine, word)
+        if(len(tmpLine) > maxChars):
+            wrappedText += curLine + os.linesep
+            curLine = ''
+        else:
+            curLine = tmpLine
+    # Make sure to add any text that didnt hit char limit
+    return wrappedText + " " + tmpLine 

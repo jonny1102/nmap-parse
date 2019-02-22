@@ -101,14 +101,17 @@ def main():
 
     if not options.interactive:
         if(defaultFlags):
-            helpers.printHosts(nmapOutput)
+            defaultFilters = nmap.NmapFilters()
+            defaultFilters.onlyAlive = False
+            defaultFilters.mustHavePorts = False
+            helpers.printHosts(nmapOutput, filters=defaultFilters)
             helpers.printUniquePorts(nmapOutput.getHostDictionary())
 
         if options.ipList:
             helpers.printHosts(nmapOutput, filters=filters)
             
         if(options.uniquePorts):
-            helpers.printUniquePorts(nmapOutput.getHostDictionary(filters=filters))
+            helpers.printUniquePorts(nmapOutput.getHostDictionary(filters=filters), filters=filters)
             
         if options.aliveHosts:
             helpers.printAliveIps(nmapOutput)
@@ -122,17 +125,17 @@ def main():
         if settings.printHumanFriendlyText and (defaultFlags or options.hostSummary):
             hprint("\nSummary\n-------")
             hprint("Total hosts: %s" % str(len(nmapOutput.Hosts)))
-            hprint("Alive hosts: %s" % str(len(nmapOutput.getAliveHosts())))
+            hprint("Alive hosts: %s" % str(len(nmapOutput.getAliveHosts(filters))))
     else:
         enterInteractiveShell(nmapOutput)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except (KeyboardInterrupt, SystemExit):
-       print("User terminated")
-    except Exception as ex:
-       print("An unknown error occurred")
+    # try:
+         main()
+    # except (KeyboardInterrupt, SystemExit):
+    #    print("User terminated")
+    # except Exception as ex:
+    #    print("An unknown error occurred")
 
 
 

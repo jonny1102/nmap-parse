@@ -54,6 +54,9 @@ class NmapOutput():
                 if ip not in self.Hosts:
                     self.Hosts[ip] = NmapHost(ip)
                 curHost = self.Hosts[ip]
+                # Record what files host was found in
+                if(nmapXmlFilename not in curHost.filesWithHost):
+                    curHost.filesWithHost.append(nmapXmlFilename)
 
                 # Attempt to get hostname
                 try:
@@ -114,17 +117,19 @@ class NmapOutput():
         return hostDict
 
     def getHosts(self, filters=None):
+        '''Returns an array of hosts that match filters'''
         if filters == None:
             filters = NmapFilters()
 
         matchedHosts = []
-        for ip in helpers.sortIpList(self.Hosts):
+        hostIps = helpers.sortIpList(self.Hosts)
+        for ip in hostIps:
             host = copy.deepcopy(self.Hosts[ip])
             if ((not host.alive) and filters.onlyAlive) or not filters.checkHost(ip):
                 continue
 
             matched = False
-            # Check ports
+            # Check ports (if at least one filter is set)
             for protocol in constants.PROTOCOLS: 
                 for port in [port for port in host.ports if port.protocol == protocol]:
                     port.matched = True
@@ -140,8 +145,14 @@ class NmapOutput():
             if filters.mustHavePorts and len(host.ports) == 0:
                 matched = False
 
+            # Dont check alive status as filter check has already failed
+            if(matched == False and (filters.portFilterSet() or filters.serviceFilterSet() or filters.mustHavePorts)):
+                continue
+
             if matched or (not filters.onlyAlive):
                 matchedHosts.append(host)
+            else:
+                pass
         return matchedHosts
 
     def getAliveHosts(self, filters):
@@ -207,6 +218,38 @@ class NmapOutput():
             helpers.eprint("Failed to combine files")
             helpers.eprint(str(ex))
 
+    def getHostsByFile(self, filters=None):
+        '''Returns a dictionary with filenames as ID's and an array of hosts'''
+        fileHostDict = {}
+        for host in self.getHosts(filters=filters):
+            for file in host.filesWithHost:
+                if file not in fileHostDict:
+                    fileHostDict[file] = []
+                fileHostDict[file].append(host)
+        return fileHostDict
+
+    def getHostsWithinFile(self, file, filters=None):
+        if(filters == None):
+            filters = NmapFilters()
+        return [host for host in self.getHosts(filters=filters) if file in host.filesWithHost]
+
+    def getUniquePortIds(self, protocol=constants.PORT_OPT_COMBINED, filters=None, hosts=None):
+        allPorts = set()
+        if(hosts == None):
+            hosts = self.getHosts(filters)
+        if(filters == None):
+            filters = NmapFilters()
+        for host in hosts:
+            if protocol == constants.PORT_OPT_TCP:
+                allPorts = allPorts.union(host.getUniquePortIds(constants.PORT_OPT_TCP, port_filter=filters.ports, service_filter=filters.services))
+            elif protocol == constants.PORT_OPT_UDP:
+                allPorts = allPorts.union(host.getUniquePortIds(constants.PORT_OPT_UDP, port_filter=filters.ports, service_filter=filters.services))
+            else:
+                allPorts = allPorts.union(host.getUniquePortIds(constants.PORT_OPT_TCP, port_filter=filters.ports, service_filter=filters.services))
+                allPorts = allPorts.union(host.getUniquePortIds(constants.PORT_OPT_UDP, port_filter=filters.ports, service_filter=filters.services))
+        return sorted(allPorts)
+
+
 class NmapService():
     def __init__(self, name):
         self.name = name
@@ -221,6 +264,13 @@ class NmapHost():
         self.ports = []
         self.services = []
         self.matched = True # Used for filtering
+        self.filesWithHost = [] # List of nmap files host was found in
+
+    def getState(self):
+        state = "up"
+        if not self.alive:
+            state = "down"
+        return state
 
     def addPort(self, protocol, portId, service):
         self.addService(service)
@@ -237,10 +287,23 @@ class NmapHost():
         if service not in self.services:
             self.services.append(service)
 
-    def getUniquePortIds(self,protocol=''):
-        allPortIds = [port.portId for port in self.ports if len(protocol) == 0 or port.protocol == protocol]
+    def getUniquePortIds(self,protocol='',port_filter=[], service_filter=[]):
+        allPortIds = []
+        for port in self.ports:
+            if(len(port_filter) > 0 and port.portId not in port_filter):
+                continue
+            if(len(service_filter) > 0 and port.service not in service_filter):
+                continue
+            if len(protocol) == 0 or port.protocol == protocol:
+                allPortIds.append(port.portId)
+
         uniquePortIds = set(allPortIds)
         return sorted(uniquePortIds)
+
+    def getHostname(self):
+        if self.hostname == self.ip:
+            return ''
+        return self.hostname
 
 class NmapPort():
     def __init__(self, protocol, port, service):
@@ -250,15 +313,15 @@ class NmapPort():
         self.matched = True # Used for filtering
 
 class NmapFilters():
-    def __init__(self):
+    def __init__(self, defaultBool=True):
         self.hosts = []
         self.ports = []
         self.services = []
-        self.mustHavePorts = True
-        self.onlyAlive = True
+        self.mustHavePorts = defaultBool
+        self.onlyAlive = defaultBool
 
-    def isFilterSet(self):
-        return self.hostFilterSet() or self.portFilterSet() or self.serviceFilterSet()
+    def areFiltersSet(self):
+        return self.hostFilterSet() or self.portFilterSet() or self.serviceFilterSet() or self.onlyAlive or self.mustHavePorts
 
     def hostFilterSet(self):
         return len(self.hosts) > 0
@@ -283,9 +346,8 @@ class NmapFilters():
                 if ipaddress.ip_address(ip) in ipaddress.ip_network(filter.filter):
                     matched = True
                     break
-        
+
         return matched
-        # CHECKCKKDSFHDIUGJIUDSG and ip not in filters.hosts)
 
 class NmapHostFilter():
     def __init__(self, filter, isIp):

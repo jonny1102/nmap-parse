@@ -1,68 +1,51 @@
-import cmd2
-from cmd2 import Cmd, with_category, argparse_completer, with_argparser
-from cmd2.argparse_completer import ACArgumentParser, ACTION_ARG_CHOICES, AutoCompleter
-from tabulate import tabulate
 import os, random, re, textwrap
 import argparse
 import ipaddress
+import tabulate
+
+import cmd2
+import cmd2_submenu
+
+from cmd2 import Cmd, with_category, argparse_completer, with_argparser
+from cmd2.argparse_completer import ACArgumentParser, ACTION_ARG_CHOICES, AutoCompleter
 
 from modules import helpers
 from modules import constants
 from modules import settings
+from modules import nessus
 from modules import common
 from modules import nmap
 
 from modules.helpers import hprint, sprint, eprint, header
 
-class InteractivePrompt(Cmd):  
+@cmd2_submenu.AddSubmenu(nessus.NessusTerminal(),
+    command='nessus',
+    aliases=(),
+    reformat_prompt = '\n\033[4m\033[1;30mnmap-parse\033[1;30m\033[0m \033[1;30m(\033[0;m\033[1;31m{sub_prompt}\033[0;m\033[1;30m) >\033[0;m ',
+    shared_attributes=dict(
+        nmapOutput = 'nmapOutput',
+        service_filter = 'service_filter',
+        port_filter = 'port_filter',
+        host_filter = 'host_filter',
+        include_ports = 'include_ports',
+        have_ports = 'have_ports',
+        only_alive = 'only_alive',
+        verbose = 'verbose',
+        raw = 'raw'
+    ))
+class InteractivePrompt(common.TerminalBase):  
     CMD_CAT_NMAP = "Nmap Commands"
 
-    prompt = '\n\033[1;30mnp> \033[1;m'
+    prompt = '\n\033[4m\033[1;30mnmap-parse\033[1;30m\033[0m\033[1;30m >\033[0;m '
     intro = """\nWelcome to nmap parse! Type ? to list commands
   \033[1;30mTip: You can send output to clipboard using the redirect '>' operator without a filename\033[1;m
   \033[1;30mTip: Set quiet to true to only get raw command output (no headings)\033[1;m"""
     allow_cli_args = False
-    
-    service_filter = ''
-    port_filter = ''
-    host_filter = ''
-    include_ports = True
-    have_ports = True
-    verbose = False
-    raw = False
-
-    userOptions = [
-        [constants.OPT_SERVICE_FILTER, "string", "", "Comma seperated list of services to show, e.g. \"http,ntp\""],
-        [constants.OPT_PORT_FILTER, "string", "", "Comma seperated list of ports to show, e.g. \"80,123\""],
-        [constants.OPT_HOST_FILTER, "string","", "Comma seperated list of hosts to show, e.g. \"127.0.0.1,127.0.0.2\""],
-        [constants.OPT_HAVE_PORTS, "bool","True", "When enabled, hosts with no open ports are excluded from output  [ True / False ]"],
-        [constants.OPT_INCLUDE_PORTS, "bool","True", "Toggles whether ports are included in 'list/services' output  [ True / False ]"],
-        [constants.OPT_VERBOSE, "bool", "False", "Shows verbose service information  [ True / False ]"],
-        [constants.OPT_RAW, "bool", "False", "Shows raw output (no headings)  [ True / False ]"]
-    ]
 
     def __init__(self, nmapOutput, *args, **kwargs):
-        self.setupUserOptions()
         super().__init__(*args, **kwargs)
-        self.nmapOutput = nmapOutput
         self.printRandomBanner()
-        self.register_postcmd_hook(self.postCmdHook)
-
-    # Use this to check if the set command was used and do our own internal logic 
-    # in addition to cmd2's logic
-    def postCmdHook(self, data: cmd2.plugin.PostcommandData) -> cmd2.plugin.PostcommandData:
-        if data.statement.command == 'set' and len(data.statement.args.split()) == 2:
-            tmpOption = data.statement.args.split()[0] 
-            tmpValue = data.statement.args.split()[1]
-            for option in self.userOptions:
-                if(tmpOption.lower() == option[0]):
-                    self.setOption(option[0], tmpValue)
-                    break
-        return data
-
-    def setupUserOptions(self):
-        for userOption in self.userOptions:
-            self.settable[userOption[0]] = userOption[3]
+        self.nmapOutput = nmapOutput
         
     def printRandomBanner(self):
         banners = [  """
@@ -109,7 +92,7 @@ class InteractivePrompt(Cmd):
                                 888       888  888 888          X88 Y8b.     
                                 888       "Y888888 888      88888P'  "Y8888  
                         ""","""
-                            /$$   /$$                                             
+                             /$$   /$$                                             
                             | $$$ | $$                                             
                             | $$$$| $$ /$$$$$$/$$$$   /$$$$$$   /$$$$$$            
                             | $$ $$ $$| $$_  $$_  $$ |____  $$ /$$__  $$           
@@ -120,7 +103,7 @@ class InteractivePrompt(Cmd):
                                                             | $$                 
                                                             | $$                 
                                                             |__/                 
-                                /$$$$$$$                                        
+                                 /$$$$$$$                                        
                                 | $$__  $$                                       
                                 | $$  \\ $$ /$$$$$$   /$$$$$$   /$$$$$$$  /$$$$$$ 
                                 | $$$$$$$/|____  $$ /$$__  $$ /$$_____/ /$$__  $$
@@ -134,67 +117,58 @@ class InteractivePrompt(Cmd):
         for line in curBanner.split('\n'):
             if len(line) > maxLen:
                 maxLen = len(line)
-        curBanner = ("-" * maxLen) + "\n\033[1;30m" + curBanner + "\033[0;m \n" + ("-" * maxLen)
+        curBanner = ("-" * maxLen) + "\n\033[1;34m" + curBanner + "\033[0;m \n" + ("-" * maxLen)
         print(curBanner)
-    
-    def do_exit(self, inp):
-        '''Exit the interactive prompt'''
-        print("Bye")
-        return True
  
+    @with_category(CMD_CAT_NMAP)
+    def do_host(self, inp):
+        '''Print details for specified host
+        Useage: "host [ip address]'''
+        ip = inp.strip()
+        if(ip not in self.nmapOutput.Hosts):
+            self.perror("Host not found: " + ip)
+            return
+        curHost = self.nmapOutput.Hosts[ip]
+        self.printTextOutput(helpers.getHostDetails(curHost))
+    
+    def complete_host(self, text, line, begidx, endidx):
+        return [host for host in self.nmapOutput.Hosts if host.startswith(text)]
+
     @with_category(CMD_CAT_NMAP)
     def do_list(self, inp):
         '''List all IP's matching filter'''
         consoleOutput = helpers.getHostListOutput(self.nmapOutput, includePorts=self.include_ports, filters=self.getFilters())
         self.printTextOutput(consoleOutput)
 
-
-    def complete_show(self, text, line, begidx, endidx):
-        return ['options']
+    def complete_file(self, text, line, begidx, endidx):
+        return [file for file in self.nmapOutput.FilesImported if file.startswith(text)]
 
     @with_category(CMD_CAT_NMAP)
-    def do_show(self, inp):
-        '''"show options" will list current user options'''
-        self.syncOptions()
-        if(inp.lower() == 'options'):
-            self.poutput('')
-            self.poutput(tabulate(self.userOptions, headers=['Setting', "Type", 'Value', 'Description'], tablefmt="github"))
-            self.poutput('')
-        else:
-            self.poutput('"show options" will list current user options')
- 
-    
-    def complete_set(self, text, line, begidx, endidx):
-        # remove 'set' from first array slot
-        splitText = line.split()[1:]
-        if(line.strip() == 'set'):
-            return [option for option in self.settable]
-        if(len(splitText) == 1):
-            return [option for option in self.settable if option.startswith(splitText[0].lower()) and not (option == splitText[0].lower())]
-        if(len(splitText) == 2):
-            if splitText[0] == constants.OPT_SERVICE_FILTER:
-                # need to split this value on comma incase user specified more than one service
-                # then use last split. Also remove quotes
-                tmpText = splitText[1].replace("\"","")
-                tmpServices = tmpText.split(',')
-                curService = tmpServices[-1:][0]
-                prefix = ''
-                if len(tmpServices) > 1:
-                    prefix = ','.join(tmpServices[:-1]) + ','
-                return self.tryMatchService(curService, prefix)
-            elif splitText[0] == constants.OPT_HOST_FILTER:
-                # need to split this value on comma incase user specified more than one IP
-                # then use last split. Also remove quotes
-                tmpText = splitText[1].replace("\"","")
-                tmpHosts = tmpText.split(',')
-                curHost = tmpHosts[-1:][0]
-                prefix = ''
-                if len(tmpHosts) > 1:
-                    prefix = ','.join(tmpHosts[:-1]) + ','
-                return [(prefix + ip) for ip in self.nmapOutput.Hosts if curHost in ip]
-        return [text]
+    def do_file(self, inp):
+        '''Print details for specified file'''
+        file = inp.strip()
+        if(file not in self.nmapOutput.FilesImported):
+            self.perror("File not found: " + file)
+            return
+        
+        filters = self.getFilters()
+        self.pfeedback(helpers.getNmapFiltersString(filters))
+        hosts = self.nmapOutput.getHostsWithinFile(file, filters=filters)
 
-    def complete_ports(self, text, line, begidx, endidx):
+        self.pfeedback(helpers.getHeader("Hosts within file"))
+        if self.verbose:
+            headers = ['IP', 'Hostname', 'State', 'TCP Ports (count)', 'UDP Ports (count)' ]
+            verboseOutput = []
+            for host in hosts:
+                verboseOutput.append([host.ip, host.getHostname(), host.getState(), 
+                                        len(host.getUniquePortIds(constants.PORT_OPT_TCP)), 
+                                        len(host.getUniquePortIds(constants.PORT_OPT_UDP))])
+            self.poutput(tabulate.tabulate(verboseOutput, headers=headers, tablefmt="github"))
+        else:
+            for host in hosts:
+                self.poutput(host.ip)
+
+    def complete_Xports(self, text, line, begidx, endidx):
         return self.basic_complete(text, line, begidx, endidx, constants.PORT_OPTIONS)
 
     @with_category(CMD_CAT_NMAP)
@@ -210,7 +184,8 @@ class InteractivePrompt(Cmd):
         userOp = inp.strip().lower() 
         if(userOp in constants.PORT_OPTIONS):
             option = userOp
-        consoleOutput = helpers.getUniquePortsOutput(self.nmapOutput.getHostDictionary(self.getFilters()), option)
+        filters = self.getFilters()
+        consoleOutput = helpers.getUniquePortsOutput(self.nmapOutput.getHostDictionary(filters), option, filters=filters)
         self.printTextOutput(consoleOutput)
 
 
@@ -220,8 +195,28 @@ class InteractivePrompt(Cmd):
         
         self.pfeedback(helpers.getHeader("Successfully Imported Files"))
         if(len(self.nmapOutput.FilesImported) > 0):
-            for file in self.nmapOutput.FilesImported:
-                self.poutput(file)
+            if self.verbose:
+                headers = ['Filename', 'Hosts Scanned', 'Alive Hosts']
+                verboseOutput = []
+                filesWithNoHosts = []
+                filters = nmap.NmapFilters(defaultBool=False)
+                hostsByFile = self.nmapOutput.getHostsByFile(filters)
+                for file in self.nmapOutput.FilesImported:
+                    if file in hostsByFile:
+                        scannedHosts = hostsByFile[file]
+                        aliveHostCount = len([host for host in scannedHosts if host.alive])
+                        verboseOutput.append([file, len(scannedHosts), aliveHostCount])
+                    else:
+                        verboseOutput.append([file, 0, 0])
+                        filesWithNoHosts.append(file)
+                self.poutput(tabulate.tabulate(verboseOutput, headers=headers))
+                if(len(filesWithNoHosts) > 0):
+                    self.perror("\nThe following file(s) had no hosts:")
+                    for file in filesWithNoHosts:
+                        self.perror("  - " + file)
+            else:
+                for file in self.nmapOutput.FilesImported:
+                    self.poutput(file)
         else:
             self.perror("No files were imported successfully")
         print()
@@ -244,159 +239,19 @@ class InteractivePrompt(Cmd):
     @with_category(CMD_CAT_NMAP)
     def do_scanned_hosts(self, inp):
         '''List all hosts scanned'''
-        header('Scanned hosts')
-        for line in [host.ip for host in self.nmapOutput.getHosts(self.getFilters(onlyAlive=False))]:
+        self.pfeedback(helpers.getHeader('Scanned hosts'))
+
+        filters = self.getFilters()
+        filters.onlyAlive = False
+
+        for line in [host.ip for host in self.nmapOutput.getHosts(filters=filters)]:
             self.poutput(line)
 
     @with_category(CMD_CAT_NMAP)
     def do_alive_hosts(self, inp):
         '''List alive hosts'''
-        header('Alive hosts')
+        self.pfeedback(helpers.getHeader('Alive hosts'))
         for ip in self.nmapOutput.getAliveHosts(self.getFilters()):
             self.poutput(ip)
 
-    @with_category(CMD_CAT_NMAP)
-    def do_unset_all(self, inp):
-        '''"unset_all" will reset all user options to default values'''
-        consoleOutput = common.TextOutput()
-        for option in [option[0] for option in self.userOptions]:
-            if(self.unsetOption(option)):
-                consoleOutput.addHumn("Unset [" + option + "] ==> " + str(self.getOption(option)))
-            else:
-                consoleOutput.addErrr("Failed to unset [%s]" % option)
-        self.printTextOutput(consoleOutput)
-
-    @with_category(CMD_CAT_NMAP)
-    def do_unset(self, inp):
-        '''"unset [option]" will unset the specified user option'''
-        splitText = inp.split()
-        if(len(splitText) != 1):
-            print ("Invalid use of unset command")
-        else:
-            success = self.unsetOption(splitText[0].lower())  
-            if(success):
-                print("Unset [" + splitText[0].lower() + "] ==> ''")
-
-    def unsetOption(self, option):
-        if(option == constants.OPT_HAVE_PORTS):
-            self.have_ports = False
-        elif(option == constants.OPT_HOST_FILTER):
-            self.host_filter = ''
-        elif(option == constants.OPT_PORT_FILTER):
-            self.port_filter = ''
-        elif(option == constants.OPT_RAW):
-            self.raw = False
-        elif(option == constants.OPT_SERVICE_FILTER):
-            self.service_filter = ''
-        elif(option == constants.OPT_VERBOSE):
-            self.verbose = False
-        elif(option == constants.OPT_INCLUDE_PORTS):
-            self.include_ports = True
-        else:
-            return False
-        return True
-
-    def setOption(self, specifiedOption, value):
-        for option in self.userOptions:
-            if option[0] == specifiedOption.lower():
-                if (option[1] == "bool"):
-                    self.setBoolOption(option, specifiedOption, value)
-                elif(option[0] == constants.OPT_HOST_FILTER):
-                    self.setHostFilter(option, value.replace('"', ''))
-                else:
-                    option[2] = value.replace('"', '')
-
-    def setHostFilter(self, option, userFilter):
-        tmpHostFilter = helpers.stringToHostFilter(userFilter.replace('"', ''))
-        filterString = ','.join([filter.filter for filter in tmpHostFilter])
-        option[2] = filterString
-        self.host_filter = filterString
-
-    def setBoolOption(self, cmdOption, userOption, value):
-        tmpValue = value.lower().strip()
-        result = (tmpValue in constants.TRUE_STRINGS)
-        cmdOption[2] = str(result)
-        if(cmdOption[0] == constants.OPT_RAW):
-            settings.printHumanFriendlyText = not result
-
-    def getOptionBool(self, specifiedOption):
-        return "True" == self.getOption(specifiedOption)
-
-    def syncOptions(self):
-        for option in self.userOptions:
-            if(option[0] == constants.OPT_HAVE_PORTS):
-                option[2] = self.have_ports
-            elif(option[0] == constants.OPT_HOST_FILTER):
-                option[2] = self.host_filter
-            elif(option[0] == constants.OPT_PORT_FILTER):
-                option[2] = self.port_filter
-            elif(option[0] == constants.OPT_RAW):
-                option[2] = self.raw
-            elif(option[0] == constants.OPT_SERVICE_FILTER):
-                option[2] = self.service_filter
-            elif(option[0] == constants.OPT_VERBOSE):
-                option[2] = self.verbose
-            elif(option[0] == constants.OPT_INCLUDE_PORTS):
-                option[2] = self.include_ports
-
-    def getOption(self, specifiedOption):
-        for option in self.userOptions:
-            if(option[0] == specifiedOption.lower()):
-                return option[2]
     
-    def getPortFilter(self):
-        portFilter = []
-        rawPortFilterString = self.port_filter
-        # Check only contains valid chars
-        if(re.match(r'^([\d\s,]+)$', rawPortFilterString)):
-            # Remove any excess white space (start/end/between commas)
-            curPortFilterString = re.sub(r'[^\d,]', '', rawPortFilterString)
-            # Split filter on comma, ignore empty entries and assign to filter
-            portFilter = [int(port) for port in curPortFilterString.split(',') if len(port) > 0]
-        return portFilter
-    
-    def getHostFilter(self):
-        return helpers.stringToHostFilter(self.host_filter)
-    
-    def getServiceFilter(self):
-        return [option for option in self.service_filter.split(',') if len(option.strip()) > 0]
-    
-    def getFilters(self, onlyAlive=True):
-        filters = nmap.NmapFilters()
-        filters.services = self.getServiceFilter()
-        filters.ports = self.getPortFilter()
-        filters.hosts = self.getHostFilter()
-        filters.onlyAlive = onlyAlive
-        filters.mustHavePorts = self.have_ports
-        return filters
-
-    def tryMatchService(self, text, prefix):
-        matches = []
-        try:
-            serviceFiles = ['/usr/share/nmap/nmap-services', '/etc/services', 'C:\\windows\\system32\\drivers\\etc\\services']
-            for serviceFile in serviceFiles:
-                if(os.path.isfile(serviceFile)):
-                    fhServices = open(serviceFile, 'r')
-                    tmpRegex = '(' + text + r'\S*)\s+\d+/(?:tcp|udp)'
-                    reg = re.compile(tmpRegex)
-                    for line in fhServices:
-                        matches += [match for match in reg.findall(line) if match not in matches]
-                    fhServices.close()
-                    break
-        except:
-            raise
-        return [(prefix + match) for match in matches]
-
-    def printTextOutput(self, textOutput):
-        for line in textOutput.entries:
-            if(line.output == constants.TEXT_NORMAL):
-                self.poutput(line.getText())
-            elif(line.output == constants.TEXT_ERROR):
-                self.perror(line.getText(), False, err_color=constants.COLOUR_ERROR)
-            elif (not self.quiet) and (not self.redirecting) and settings.printHumanFriendlyText:
-                if(line.output == constants.TEXT_FRIENDLY):
-                    self.pfeedback(line.getText())
-                elif(line.output == constants.TEXT_SUCCESS):
-                    self.pfeedback(line.getText())
-                else:
-                    self.poutput(line.getText())
