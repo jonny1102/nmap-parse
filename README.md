@@ -1,6 +1,15 @@
 # nmap-parse
 nmap-parse is  a python3 command line nmap XML parser. The default use of the tool accepts a list of nmap XML files and/or directories (containing nmap XML files). The '-r' flag can be used to recurse all sub-directories in search of additional nmap files.
 
+## Main Features
+* Ability to handle hundreds of nmap files simultaneously
+* Automatically locate nmap files when provided with a directory (and -r recurse flag)
+* Ability to filter nmap output by services, ports and/or hosts/CIDR ranges
+* Show open ports matching filter
+* Show unique ports for specified filter
+* View single host details
+* Ability to create new nessus policy for hosts/ports currently matching filter
+
 ## Help Output
 Help output for nmap-parse:
 
@@ -303,8 +312,7 @@ This script requires python3 and the following modules:
 * colorama
 * requests
 * urllib3
-* shlex
 
 These can all be installed via pip with the following command:
 
-	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3 shlex
+	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3
