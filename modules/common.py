@@ -2,6 +2,7 @@ from colorama import Fore, Style
 import os, random, re, textwrap
 import argparse
 import ipaddress
+import shlex
 
 import re
 import cmd2
@@ -323,6 +324,15 @@ class TerminalBase(cmd2.Cmd):
         except:
             raise
         return [(prefix + match) for match in matches]
+
+    def splitInput(self, line, curCmd):
+        splitInput = []
+        try:
+            splitInput = [option for option in shlex.split(line[line.index(curCmd) + len(curCmd):].strip(), posix=False)]
+        except ValueError:
+            # Append quote to string to prevent exception
+            splitInput = [option for option in shlex.split((line[line.index(curCmd) + len(curCmd):]+'"').strip(), posix=False)]
+        return splitInput
 
 class SubTerminalBase(TerminalBase):
     def __init__(self, *args, **kwargs):

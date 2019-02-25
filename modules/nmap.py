@@ -1,3 +1,4 @@
+import os
 import copy
 import ipaddress
 
@@ -22,6 +23,7 @@ class NmapOutput():
         # Loop through all nmap xml files
         iMaxStatusLen = 0
         for nmapXmlFilename in nmapXmlFilenames:
+            nmapXmlFilename = os.path.abspath(os.path.expanduser(nmapXmlFilename))
             count += 1
             # Output stats
             if(nmapXmlFilename in self.FilesImported):

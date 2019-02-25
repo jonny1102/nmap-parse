@@ -7,10 +7,13 @@ import getpass
 import shlex
 import json
 import cmd2
+import time
 import re
+import os
 
 from modules import common
 from modules import helpers
+from modules import constants
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -68,7 +71,7 @@ class NessusTerminal(common.SubTerminalBase):
             else:
                 self.pfeedback("Failed to create scan: " + policyName)
         else:
-            self.perror("Invalid arguments supplied, run 'help create' to see useage")
+            self.perror("Invalid arguments supplied, run 'help create' to see usage")
     
     # Enable tab completion for policy name
     def complete_create(self, text, line, begidx, endidx):
@@ -77,7 +80,7 @@ class NessusTerminal(common.SubTerminalBase):
         if(curCmd not in line):
             return [text]
         trailingSpace = line[-1] == ' '
-        options = [option for option in shlex.split(line[line.index(curCmd) + len(curCmd):].strip()) if '-u' not in option]
+        options = [option for option in self.splitInput(line, curCmd) if '-u' not in option]
         # Only try complete if less than 4 options as this should be the max specified:
         # E.g. ['policyName', 'folderName', 'scanName']
         optLen = len(options)
@@ -85,7 +88,7 @@ class NessusTerminal(common.SubTerminalBase):
             return [text]
         else:
             if(not self.nessus.checkSessionValid()):
-                self.perror("Invalid session, please call login")
+                self.perror("Invalid session, please login")
                 return [text]
             self.nessus.ensurePoliciesLoaded()
             # If setting policy
@@ -99,6 +102,55 @@ class NessusTerminal(common.SubTerminalBase):
                 return [folder.name for folder in self.nessus.folders if folder.name.lower().startswith(text.lower())]
             else:
                 return [text]
+
+    @cmd2.with_category(CMD_CAT_NESSUS)
+    def do_download(self, inp):
+        '''Download a nessus scan\n
+        Usage: download [format] [scan] [output_directory]
+          [format]\tOutput format to download (tab complete)
+          [scan]\tThe name of the nessus scan to download (tab complete)
+          [output_directory]\tThe location to download the scan to'''
+        self.nessus.ensureSessionValid()
+        options = inp.arg_list
+        if len(options) == 3:
+            exportFormat = options[0].replace('"','')
+            scanName = options[1].replace('"','')
+            outputDirectory = options[2].replace('"','')
+            success = self.nessus.downloadScan(scanName, exportFormat, outputDirectory)
+            if(success):
+                self.pfeedback("Successfully downloaded scan (%s) to: %s" % (scanName, outputDirectory))
+            else:
+                self.pfeedback("Failed to download scan: " + scanName)
+        else:
+            self.perror("Invalid arguments supplied, run 'help download' to see usage")
+    
+    def complete_download(self, text, line, begidx, endidx):
+        curCmd = 'download'
+        if(curCmd not in line):
+            return [text]
+        trailingSpace = line[-1] == ' '
+        options = self.splitInput(line, curCmd)
+        # Only try complete if less than 4 options as this should be the max specified:
+        # E.g. ['format', 'scan', 'output_dir']
+        optLen = len(options)
+        if(optLen >= 4):
+            return [text]
+        else:
+            if(not self.nessus.checkSessionValid()):
+                self.perror("Invalid session, please login")
+                return [text]
+            self.nessus.ensurePoliciesLoaded()
+            # If setting export type
+            if(optLen == 0 or (not trailingSpace and optLen == 1)):
+                return [exportType for exportType in constants.EXPORT_FORMATS if exportType.lower().startswith(text.lower())]
+            # If setting scan name
+            elif(optLen == 1 or (not trailingSpace and optLen == 2)):
+                return [scan.name for scan in self.nessus.getScans() if scan.name.lower().startswith(text.lower())]
+            else:
+                try:
+                    return self.path_complete(text, line, begidx, endidx, path_filter=os.path.isdir)
+                except:
+                    return [text]
 
     def getUserSettings(self):
         userSettings = {}
@@ -121,7 +173,10 @@ class Nessus():
     baseUrl = "https://localhost:8834"
     defaultPolicies = []
     userPolicies = []
+    userScans = []
     folders = []
+
+    lastRetrievedScans = 0
 
     def __init__(self):
         self.sessionToken = None
@@ -154,7 +209,8 @@ class Nessus():
             else:
                 return False
         except Exception:
-            print("Failed to connect to or authenticate with nessus instance")
+            #print("Failed to connect to or authenticate with nessus instance")
+            return False
         return True
 
     def getApiToken(self):
@@ -209,6 +265,35 @@ class Nessus():
             tmpFolder = NessusFolder(folderJson)
             self.folders.append(tmpFolder)
         self.folders.sort(key=lambda x: x.name)
+
+    def downloadScan(self, scanName, exportFormat, outputDirectory):
+        scanId = None
+        for scan in self.userScans:
+            if(scan.name.lower() == scanName.lower()):
+                scanId = scan.id
+                break
+        if scanId == None:
+            raise NessusInvalidScanError()
+
+        requestDownloadUrl = "/scans/%s/export" % scanId
+        jsonData = {"format":exportFormat}
+        if(exportFormat in [constants.EXPORT_HTML, constants.EXPORT_PDF]):
+            jsonData["chapters"] = "vuln_by_plugin"
+        response = self.post(requestDownloadUrl, json.dumps(jsonData))
+
+        if(response.status_code != 200):
+            return False
+
+        # Example response.text:
+        #   {"token":"949359591a2d68815b5db75ca1481e650047312d4acbf00f20306a59938fd131","file":1381771953}
+        
+        # Extract token from response
+        jsonData = json.loads(response.text)
+        token = jsonData['token']
+
+        # Download the file
+        success = self.download('/tokens/%s/download' % token, outputDirectory)        
+        return success
 
     def createScan(self, scanName, policyName, folderName, userSettings):
         templateId = None
@@ -267,9 +352,15 @@ class Nessus():
         return response.status_code == 200
 
     def getScans(self):
+        # Only download scans again if they have not been updated in last 10 seconds
+        # Used to make tab completes more responsive and reduce requests
+        if(int(time.time()) - self.lastRetrievedScans < 10):
+            return self.userScans
+        self.lastRetrievedScans = int(time.time())
         scans = []
         for scan in self.getJsonValue('/scans', 'scans'):
             scans.append(NessusScanMetaData(scan))
+        self.userScans = scans
         return scans
     
     # Parse response output and return specified value
@@ -291,6 +382,29 @@ class Nessus():
         fullUrl = self.baseUrl + url
         response = requests.post(fullUrl, headers=self.headers, data=json, verify=False)
         return response
+
+    def download(self, url, outputDirectory):
+        try:
+            # Wait until file has generated
+            response = None
+            while True:
+                response = self.get(url)
+                if 'Content-Disposition' in response.headers:
+                    break
+                else:
+                    time.sleep(0.5)
+            contentDisposition = response.headers.get('Content-Disposition')
+            matches = re.findall("filename=(.+)", contentDisposition)
+            fileName = matches[0].replace('"','').replace("'",'')
+            fullFileName = os.path.join(outputDirectory, fileName)
+            # Write response contents to file
+            open(fullFileName, 'wb').write(response.content)
+        except:
+            return False
+        return True
+
+class NessusInvalidScanError(Exception):
+    pass
 
 class NessusInvalidFolderError(Exception):
     pass
