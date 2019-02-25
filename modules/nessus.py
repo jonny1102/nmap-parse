@@ -102,6 +102,55 @@ class NessusTerminal(common.SubTerminalBase):
                 return [folder.name for folder in self.nessus.folders if folder.name.lower().startswith(text.lower())]
             else:
                 return [text]
+                
+    @cmd2.with_category(CMD_CAT_NESSUS)
+    def do_download_folder(self, inp):
+        '''Download all nessus scans in folder\n
+        Usage: download_folder [folder] [format] [output_directory]
+          [folder]\tThe name of the nessus folder to download (tab complete)
+          [format]\tOutput format to download (tab complete)
+          [output_directory]\tThe location to download the scan to'''
+        self.nessus.ensureSessionValid()
+        options = inp.arg_list
+        if len(options) == 3:
+            folderName = options[0].replace('"','')
+            exportFormat = options[1].replace('"','')
+            outputDirectory = options[2].replace('"','')
+            success = self.nessus.downloadFolder(folderName, exportFormat, outputDirectory)
+            if(success):
+                self.pfeedback("Successfully downloaded folder: " + folderName)
+            else:
+                self.pfeedback("Failed to download folder: " + folderName)
+        else:
+            self.perror("Invalid arguments supplied, run 'help download_folder' to see usage")
+    
+    # Enable tab completion for policy name
+    def complete_download_folder(self, text, line, begidx, endidx):
+        curCmd = 'download_folder'
+        if(curCmd not in line):
+            return [text]
+        trailingSpace = line[-1] == ' '
+        options = self.splitInput(line, curCmd)
+        # Only try complete if less than 4 options as this should be the max specified:
+        # E.g. ['folder', 'format', 'output_directory']
+        optLen = len(options)
+        if(optLen >= 4):
+            return [text]
+        else:
+            if(not self.nessus.checkSessionValid()):
+                self.perror("Invalid session, please login")
+                return [text]
+            # If setting policy
+            if(optLen == 0 or (not trailingSpace and optLen == 1)):
+                return [folder.name for folder in self.nessus.folders if folder.name.lower().startswith(text.lower())]
+            # If setting folder name
+            elif(optLen == 1 or (not trailingSpace and optLen == 2)):
+                return [exportType for exportType in constants.EXPORT_FORMATS if exportType.lower().startswith(text.lower())]
+            else:
+                try:
+                    return self.path_complete(text, line, begidx, endidx, path_filter=os.path.isdir)
+                except:
+                    return [text]
 
     @cmd2.with_category(CMD_CAT_NESSUS)
     def do_download(self, inp):
@@ -266,6 +315,18 @@ class Nessus():
             self.folders.append(tmpFolder)
         self.folders.sort(key=lambda x: x.name)
 
+    def downloadFolder(self, folderName, exportFormat, outputDirectory):
+        folderId = self.getFolderIdByName(folderName)
+        if folderId == None:
+            raise NessusInvalidFolderError()
+        
+        for scan in self.userScans:
+            if scan.folder_id == folderId:
+                helpers.hprint("Downloading %s" % scan.name)
+                self.downloadScan(scan.name, exportFormat, outputDirectory)
+
+        return True
+
     def downloadScan(self, scanName, exportFormat, outputDirectory):
         scanId = None
         for scan in self.userScans:
@@ -295,6 +356,22 @@ class Nessus():
         success = self.download('/tokens/%s/download' % token, outputDirectory)        
         return success
 
+    def createFolder(self, folderName):
+        jsonData = {}
+        jsonData["name", folderName]
+        response = self.post("/scans", json.dumps(jsonData))
+        if(response.status_code == 200):
+            self.loadFolders()
+            return self.getFolderIdByName(folderName)
+        else:
+            raise NessusInvalidFolderError()
+
+    def getFolderIdByName(self, folderName):
+        for folder in self.folders:
+            if(folder.name.lower() == folderName.lower()):
+                return folder.id
+        return None
+
     def createScan(self, scanName, policyName, folderName, userSettings):
         templateId = None
         policyId = None
@@ -312,11 +389,10 @@ class Nessus():
         if templateId == None:
             raise NessusInvalidPolicyError()
 
-        folderId = None
-        for folder in self.folders:
-            if(folder.name.lower() == folderName.lower()):
-                folderId = folder.id
-                break
+        folderId = self.getFolderIdByName(folderName)
+        # Attempt to create folder if not exists
+        if folderId == None:
+            folderId = self.createFolder(folderName)
         if folderId == None:
             raise NessusInvalidFolderError()
                 
