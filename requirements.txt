@@ -1,0 +1,8 @@
+IPy
+tabulate
+bs4
+cmd2
+cmd2-submenu
+colorama
+requests
+urllib3

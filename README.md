@@ -10,6 +10,24 @@ nmap-parse is  a python3 command line nmap XML parser. The default use of the to
 * View single host details
 * Ability to create new nessus policy for hosts/ports currently matching filter
 
+## Prerequisites
+
+    pip install -r requirements.txt
+
+This script requires python3 and the following modules:
+* IPy
+* tabulate
+* bs4
+* cmd2
+* cmd2-submenu
+* colorama
+* requests
+* urllib3
+
+These can all be installed via pip with the following command:
+
+	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3
+
 ## Help Output
 Help output for nmap-parse:
 
@@ -302,17 +320,3 @@ Disable headings from console (this is the same output as the above command)
 	np> list
 	74.207.244.221
 
-## Prerequisites
-This script requires python3 and the following modules:
-* IPy
-* tabulate
-* bs4
-* cmd2
-* cmd2-submenu
-* colorama
-* requests
-* urllib3
-
-These can all be installed via pip with the following command:
-
-	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3
