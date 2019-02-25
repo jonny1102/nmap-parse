@@ -316,3 +316,6 @@ This script requires python3 and the following modules:
 These can all be installed via pip with the following command:
 
 	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3
+
+or using 
+	pip install -r requirements.txt
