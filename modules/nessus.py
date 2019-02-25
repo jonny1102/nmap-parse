@@ -358,8 +358,8 @@ class Nessus():
 
     def createFolder(self, folderName):
         jsonData = {}
-        jsonData["name", folderName]
-        response = self.post("/scans", json.dumps(jsonData))
+        jsonData["name"] = folderName
+        response = self.post("/folders", json.dumps(jsonData))
         if(response.status_code == 200):
             self.loadFolders()
             return self.getFolderIdByName(folderName)
