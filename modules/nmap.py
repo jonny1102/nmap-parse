@@ -24,6 +24,9 @@ class NmapOutput():
         for nmapXmlFilename in nmapXmlFilenames:
             count += 1
             # Output stats
+            if(nmapXmlFilename in self.FilesImported):
+                helpers.hprint("Skipping previously imported file: " + nmapXmlFilename)
+                continue
             sStatus = "Loading [%s of %s] %s" % (str(count),str(len(nmapXmlFilenames)),nmapXmlFilename)
             if(colourSupport):
                 sStatus = "\033[1;30m" + sStatus + "\033[1;m"

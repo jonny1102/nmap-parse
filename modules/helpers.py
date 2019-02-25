@@ -335,3 +335,9 @@ def wrapText(text, maxChars = 50):
             curLine = tmpLine
     # Make sure to add any text that didnt hit char limit
     return wrappedText + " " + tmpLine 
+
+def getNmapFiles(fileOrDir, recurse=False):
+    if os.path.isdir(fileOrDir):
+        return getFilesInDir(fileOrDir, filter=r'.*\.xml$', recurse=recurse)
+    else:
+        return [fileOrDir]

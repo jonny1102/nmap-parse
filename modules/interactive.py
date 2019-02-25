@@ -8,6 +8,7 @@ import cmd2_submenu
 
 from cmd2 import Cmd, with_category, argparse_completer, with_argparser
 from cmd2.argparse_completer import ACArgumentParser, ACTION_ARG_CHOICES, AutoCompleter
+from typing import List
 
 from modules import helpers
 from modules import constants
@@ -188,6 +189,22 @@ class InteractivePrompt(common.TerminalBase):
         consoleOutput = helpers.getUniquePortsOutput(self.nmapOutput.getHostDictionary(filters), option, filters=filters)
         self.printTextOutput(consoleOutput)
 
+    complete_import = cmd2.Cmd.path_complete
+
+    @with_category(CMD_CAT_NMAP)
+    @cmd2.with_argument_list
+    def do_import(self, args: List[str]):
+        '''Import additional nmap files or directories
+        
+        Usage: import [filename/directory]
+        '''
+        if not args:
+            self.perror('import requires a path to a file/directory as an argument')
+            return
+        allFiles = []
+        for file in args:
+            allFiles.extend(helpers.getNmapFiles(file, recurse=True))
+        self.nmapOutput.parseNmapXmlFiles(allFiles)
 
     @with_category(CMD_CAT_NMAP)
     def do_import_summary(self, inp):

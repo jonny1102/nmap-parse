@@ -56,10 +56,7 @@ def main():
     # Find all XML files
     nmapXmlFilenames = []
     for arg in args:
-        if os.path.isdir(arg):
-            nmapXmlFilenames.extend(helpers.getFilesInDir(arg, filter=r'.*\.xml$', recurse=options.recurse))
-        else:
-            nmapXmlFilenames.append(arg)
+        nmapXmlFilenames.extend(helpers.getNmapFiles(arg, recurse=options.recurse))
 
     # Exit if no XML files found
     if nmapXmlFilenames == []:
