@@ -239,28 +239,48 @@ def stringToHostFilter(filterString):
     hostFilter = []
     rawHostFilterString = filterString
     # Remove any excess white space (start/end/between commas)
-    curHostFilterString = re.sub(r'[^\d\./,]', '', rawHostFilterString)
+    curHostFilterString = rawHostFilterString.strip() #re.sub(r'[^\d\./,]', '', rawHostFilterString)
     # Split filter on comma, ignore empty entries and assign to filter
-    tmpHostFilter = [ip for ip in curHostFilterString.split(',') if len(ip) > 0]
-    for filter in tmpHostFilter:
-        validFilter = False
-        isIp = False
-        try:
-            ipaddress.ip_address(filter)
-            validFilter = True
-            isIp = True
-        except ValueError:
-            pass
-
-        try:
-            ipaddress.ip_network(filter)
-            validFilter = True
-        except ValueError:
-            pass
-        if(validFilter):
-            hostFilter.append(nmap.NmapHostFilter(filter, isIp))
+    tmpHostFilter = [ip.strip() for ip in curHostFilterString.split(',') if len(ip) > 0]
+    for curHostFilter in tmpHostFilter:
+        isFilename = False
+        curFilters = []
+        # Check is specified filter is a file and attempt to load each line if it is
+        if(os.path.isfile(curHostFilter)):
+            try:
+                isFilename = True
+                fhFile = open(curHostFilter, 'r')
+                for line in fhFile:
+                    if(len(line.strip()) > 0):
+                        curFilters.append(line.strip())
+                fhFile.close()
+            except:
+                eprint("Failed to load contents of: " + curHostFilter)
         else:
-            eprint("Invalid host filter option ignored: " + filter)
+            curFilters.append(curHostFilter)
+        
+        for filter in curFilters:
+            validFilter = False
+            isIp = False
+            try:
+                ipaddress.ip_address(filter)
+                validFilter = True
+                isIp = True
+            except ValueError:
+                pass
+
+            try:
+                ipaddress.ip_network(filter)
+                validFilter = True
+            except ValueError:
+                pass
+            if(validFilter):
+                hostFilter.append(nmap.NmapHostFilter(filter, isIp))
+            else:
+                if(isFilename):
+                    eprint("Invalid host filter (within %s) option ignored: %s" % (curHostFilter, filter))
+                else:
+                    eprint("Invalid host filter option ignored: " + filter)
     return hostFilter
 
 def getJsonValue(jsonData, id):
