@@ -19,8 +19,8 @@ from modules import interactive
 
 from modules.helpers import hprint, sprint, eprint, header
 
-VERSION = "0.1.2"
-RELEASE_DATE = "21/02/2019"
+VERSION = "0.1.3"
+RELEASE_DATE = "2019-02-25"
 
 def enterInteractiveShell(nmapOutput):
     prompt = interactive.InteractivePrompt(nmapOutput)
