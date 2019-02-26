@@ -11,22 +11,19 @@ nmap-parse is  a python3 command line nmap XML parser. The default use of the to
 * Ability to create new nessus policy for hosts/ports currently matching filter
 
 ## Prerequisites
+All prerequisites can be installed by running the following command:
 
     pip install -r requirements.txt
 
 This script requires python3 and the following modules:
-* IPy
-* tabulate
-* bs4
-* cmd2
-* cmd2-submenu
-* colorama
-* requests
-* urllib3
+* IPy, tabulate, bs4, cmd2, cmd2-submenu, colorama, requests, urllib3
+  
+## Quick Start
+Launch interactive mode against a directory of nmap files:
 
-These can all be installed via pip with the following command:
+`./nmap-parse.py -i /tmp/nmap-files-directory/`
 
-	pip install -U IPy tabulate bs4 cmd2 cmd2-submenu colorama requests urllib3
+Use the `help` command or the Wiki to see what commands are available
 
 ## Help Output
 Help output for nmap-parse:
