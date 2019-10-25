@@ -16,7 +16,7 @@ class NmapOutput():
         self.Services = []
         # Import xml files
         self.parseNmapXmlFiles(xmlFiles)
-    
+
     def parseNmapXmlFiles(self, nmapXmlFilenames):
         count = 0
         colourSupport = helpers.supportsColour()
@@ -68,8 +68,8 @@ class NmapOutput():
                     curHost.hostname = xHost.find('.//hostname').get('name') # hostname will be in nmap xml if PTR (reverse lookup) record present
                 except:
                     curHost.hostname = ip
-                
-                # Store host up status 
+
+                # Store host up status
                 curHost.alive = (xHost.find("status").get('state') == 'up')
 
                 # Parse ports
@@ -80,12 +80,12 @@ class NmapOutput():
                         curProtocol = xPort.get('protocol')
                         curService = ''
                         if(None != xPort.find('.//service')):
-                            curService = xPort.find('.//service').get('name')                        
+                            curService = xPort.find('.//service').get('name')
                         # Store port details
                         curHost.addPort(curProtocol, curPortId, curService)
                         # Store service details in global variable
                         self.addService(curService, ip, curPortId)
-    
+
     # Ger or create new service with host/ip/port details
     def addService(self, svcName, ip, port):
         curService = self.getService(svcName)
@@ -100,7 +100,7 @@ class NmapOutput():
         for host in service.hosts:
             if host.ip == ip:
                 return host
-        
+
         newServiceHost = NmapHost(ip)
         service.hosts.append(newServiceHost)
         return newServiceHost
@@ -110,7 +110,7 @@ class NmapOutput():
         for service in self.Services:
             if service.name == svcName:
                 return service
-        
+
         newService = NmapService(svcName)
         self.Services.append(newService)
         return newService
@@ -133,20 +133,20 @@ class NmapOutput():
             if ((not host.alive) and filters.onlyAlive) or not filters.checkHost(ip):
                 continue
 
-            matched = False
+            matched = True
             # Check ports (if at least one filter is set)
-            for protocol in constants.PROTOCOLS: 
+            for protocol in constants.PROTOCOLS:
                 for port in [port for port in host.ports if port.protocol == protocol]:
                     port.matched = True
                     if (
-                        (filters.portFilterSet() and (filters.ports == [] or port.portId not in filters.ports)) or 
+                        (filters.portFilterSet() and (filters.ports == [] or port.portId not in filters.ports)) or
                         (filters.serviceFilterSet() and (filters.services == [] or port.service not in filters.services))
                     ):
                         port.matched = False
-                        
+
                     if port.matched:
                         matched = True
-            
+
             if filters.mustHavePorts and len(host.ports) == 0:
                 matched = False
 
@@ -341,7 +341,7 @@ class NmapFilters():
         # Always return true if no filter is set
         if not self.hostFilterSet():
             return True
-        
+
         # Check if host matches any ips first
         matched = ip in [filter.filter for filter in self.hosts if filter.isIp]
 

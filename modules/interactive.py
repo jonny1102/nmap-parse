@@ -34,7 +34,7 @@ from modules.helpers import hprint, sprint, eprint, header
         verbose = 'verbose',
         raw = 'raw'
     ))
-class InteractivePrompt(common.TerminalBase):  
+class InteractivePrompt(common.TerminalBase):
     CMD_CAT_NMAP = "Nmap Commands"
 
     prompt = '\n\033[4m\033[1;30mnmap-parse\033[1;30m\033[0m\033[1;30m >\033[0;m '
@@ -47,66 +47,66 @@ class InteractivePrompt(common.TerminalBase):
         super().__init__(*args, **kwargs)
         self.printRandomBanner()
         self.nmapOutput = nmapOutput
-        
+
     def printRandomBanner(self):
         banners = [  """
-                                                       .         .                                                      
-                            b.             8          ,8.       ,8.                   .8.          8 888888888o          
-                            888o.          8         ,888.     ,888.                 .888.         8 8888    `88.        
-                            Y88888o.       8        .`8888.   .`8888.               :88888.        8 8888     `88        
-                            .`Y888888o.    8       ,8.`8888. ,8.`8888.             . `88888.       8 8888     ,88        
-                            8o. `Y888888o. 8      ,8'8.`8888,8^8.`8888.           .8. `88888.      8 8888.   ,88'        
-                            8`Y8o. `Y88888o8     ,8' `8.`8888' `8.`8888.         .8`8. `88888.     8 888888888P'         
-                            8   `Y8o. `Y8888    ,8'   `8.`88'   `8.`8888.       .8' `8. `88888.    8 8888                
-                            8      `Y8o. `Y8   ,8'     `8.`'     `8.`8888.     .8'   `8. `88888.   8 8888                
-                            8         `Y8o.`  ,8'       `8        `8.`8888.   .888888888. `88888.  8 8888                
-                            8            `Yo ,8'         `         `8.`8888. .8'       `8. `88888. 8 8888                
-                                                                                                                        
-                            8 888888888o      .8.          8 888888888o.     d888888o.   8 8888888888     
-                            8 8888    `88.   .888.         8 8888    `88.  .`8888:' `88. 8 8888           
-                            8 8888     `88  :88888.        8 8888     `88  8.`8888.   Y8 8 8888           
-                            8 8888     ,88 . `88888.       8 8888     ,88  `8.`8888.     8 8888           
-                            8 8888.   ,88'.8. `88888.      8 8888.   ,88'   `8.`8888.    8 888888888888   
-                            8 888888888P'.8`8. `88888.     8 888888888P'     `8.`8888.   8 8888           
-                            8 8888      .8' `8. `88888.    8 8888`8b          `8.`8888.  8 8888           
-                            8 8888     .8'   `8. `88888.   8 8888 `8b.    8b   `8.`8888. 8 8888           
-                            8 8888    .888888888. `88888.  8 8888   `8b.  `8b.  ;8.`8888 8 8888           
-                            8 8888   .8'       `8. `88888. 8 8888     `88. `Y8888P ,88P' 8 888888888888   
+                                                       .         .
+                            b.             8          ,8.       ,8.                   .8.          8 888888888o
+                            888o.          8         ,888.     ,888.                 .888.         8 8888    `88.
+                            Y88888o.       8        .`8888.   .`8888.               :88888.        8 8888     `88
+                            .`Y888888o.    8       ,8.`8888. ,8.`8888.             . `88888.       8 8888     ,88
+                            8o. `Y888888o. 8      ,8'8.`8888,8^8.`8888.           .8. `88888.      8 8888.   ,88'
+                            8`Y8o. `Y88888o8     ,8' `8.`8888' `8.`8888.         .8`8. `88888.     8 888888888P'
+                            8   `Y8o. `Y8888    ,8'   `8.`88'   `8.`8888.       .8' `8. `88888.    8 8888
+                            8      `Y8o. `Y8   ,8'     `8.`'     `8.`8888.     .8'   `8. `88888.   8 8888
+                            8         `Y8o.`  ,8'       `8        `8.`8888.   .888888888. `88888.  8 8888
+                            8            `Yo ,8'         `         `8.`8888. .8'       `8. `88888. 8 8888
+
+                            8 888888888o      .8.          8 888888888o.     d888888o.   8 8888888888
+                            8 8888    `88.   .888.         8 8888    `88.  .`8888:' `88. 8 8888
+                            8 8888     `88  :88888.        8 8888     `88  8.`8888.   Y8 8 8888
+                            8 8888     ,88 . `88888.       8 8888     ,88  `8.`8888.     8 8888
+                            8 8888.   ,88'.8. `88888.      8 8888.   ,88'   `8.`8888.    8 888888888888
+                            8 888888888P'.8`8. `88888.     8 888888888P'     `8.`8888.   8 8888
+                            8 8888      .8' `8. `88888.    8 8888`8b          `8.`8888.  8 8888
+                            8 8888     .8'   `8. `88888.   8 8888 `8b.    8b   `8.`8888. 8 8888
+                            8 8888    .888888888. `88888.  8 8888   `8b.  `8b.  ;8.`8888 8 8888
+                            8 8888   .8'       `8. `88888. 8 8888     `88. `Y8888P ,88P' 8 888888888888
                         ""","""
-                            888b    888                                        
-                            8888b   888                                        
-                            88888b  888                                        
-                            888Y88b 888 88888b.d88b.   8888b.  88888b.         
-                            888 Y88b888 888 "888 "88b     "88b 888 "88b        
-                            888  Y88888 888  888  888 .d888888 888  888        
-                            888   Y8888 888  888  888 888  888 888 d88P        
-                            888    Y888 888  888  888 "Y888888 88888P"         
-                                                            888             
-                                                            888             
-                                                            888             
-                                8888888b.                                    
-                                888   Y88b                                   
-                                888    888                                   
-                                888   d88P 8888b.  888d888 .d8888b   .d88b.  
-                                8888888P"     "88b 888P"   88K      d8P  Y8b 
-                                888       .d888888 888     "Y8888b. 88888888 
-                                888       888  888 888          X88 Y8b.     
-                                888       "Y888888 888      88888P'  "Y8888  
+                            888b    888
+                            8888b   888
+                            88888b  888
+                            888Y88b 888 88888b.d88b.   8888b.  88888b.
+                            888 Y88b888 888 "888 "88b     "88b 888 "88b
+                            888  Y88888 888  888  888 .d888888 888  888
+                            888   Y8888 888  888  888 888  888 888 d88P
+                            888    Y888 888  888  888 "Y888888 88888P"
+                                                            888
+                                                            888
+                                                            888
+                                8888888b.
+                                888   Y88b
+                                888    888
+                                888   d88P 8888b.  888d888 .d8888b   .d88b.
+                                8888888P"     "88b 888P"   88K      d8P  Y8b
+                                888       .d888888 888     "Y8888b. 88888888
+                                888       888  888 888          X88 Y8b.
+                                888       "Y888888 888      88888P'  "Y8888
                         ""","""
-                             /$$   /$$                                             
-                            | $$$ | $$                                             
-                            | $$$$| $$ /$$$$$$/$$$$   /$$$$$$   /$$$$$$            
-                            | $$ $$ $$| $$_  $$_  $$ |____  $$ /$$__  $$           
-                            | $$  $$$$| $$ \\ $$ \\ $$  /$$$$$$$| $$  \\ $$           
-                            | $$\\  $$$| $$ | $$ | $$ /$$__  $$| $$  | $$           
-                            | $$ \\  $$| $$ | $$ | $$|  $$$$$$$| $$$$$$$/           
-                            |__/  \\__/|__/ |__/ |__/ \\_______/| $$____/            
-                                                            | $$                 
-                                                            | $$                 
-                                                            |__/                 
-                                 /$$$$$$$                                        
-                                | $$__  $$                                       
-                                | $$  \\ $$ /$$$$$$   /$$$$$$   /$$$$$$$  /$$$$$$ 
+                             /$$   /$$
+                            | $$$ | $$
+                            | $$$$| $$ /$$$$$$/$$$$   /$$$$$$   /$$$$$$
+                            | $$ $$ $$| $$_  $$_  $$ |____  $$ /$$__  $$
+                            | $$  $$$$| $$ \\ $$ \\ $$  /$$$$$$$| $$  \\ $$
+                            | $$\\  $$$| $$ | $$ | $$ /$$__  $$| $$  | $$
+                            | $$ \\  $$| $$ | $$ | $$|  $$$$$$$| $$$$$$$/
+                            |__/  \\__/|__/ |__/ |__/ \\_______/| $$____/
+                                                            | $$
+                                                            | $$
+                                                            |__/
+                                 /$$$$$$$
+                                | $$__  $$
+                                | $$  \\ $$ /$$$$$$   /$$$$$$   /$$$$$$$  /$$$$$$
                                 | $$$$$$$/|____  $$ /$$__  $$ /$$_____/ /$$__  $$
                                 | $$____/  /$$$$$$$| $$  \\__/|  $$$$$$ | $$$$$$$$
                                 | $$      /$$__  $$| $$       \\____  $$| $$_____/
@@ -120,7 +120,7 @@ class InteractivePrompt(common.TerminalBase):
                 maxLen = len(line)
         curBanner = ("-" * maxLen) + "\n\033[1;34m" + curBanner + "\033[0;m \n" + ("-" * maxLen)
         print(curBanner)
- 
+
     @with_category(CMD_CAT_NMAP)
     def do_host(self, inp):
         '''Print details for specified host
@@ -131,7 +131,7 @@ class InteractivePrompt(common.TerminalBase):
             return
         curHost = self.nmapOutput.Hosts[ip]
         self.printTextOutput(helpers.getHostDetails(curHost))
-    
+
     def complete_host(self, text, line, begidx, endidx):
         return [host for host in self.nmapOutput.Hosts if host.startswith(text)]
 
@@ -151,7 +151,7 @@ class InteractivePrompt(common.TerminalBase):
         if(file not in self.nmapOutput.FilesImported):
             self.perror("File not found: " + file)
             return
-        
+
         filters = self.getFilters()
         self.pfeedback(helpers.getNmapFiltersString(filters))
         hosts = self.nmapOutput.getHostsWithinFile(file, filters=filters)
@@ -161,8 +161,8 @@ class InteractivePrompt(common.TerminalBase):
             headers = ['IP', 'Hostname', 'State', 'TCP Ports (count)', 'UDP Ports (count)' ]
             verboseOutput = []
             for host in hosts:
-                verboseOutput.append([host.ip, host.getHostname(), host.getState(), 
-                                        len(host.getUniquePortIds(constants.PORT_OPT_TCP)), 
+                verboseOutput.append([host.ip, host.getHostname(), host.getState(),
+                                        len(host.getUniquePortIds(constants.PORT_OPT_TCP)),
                                         len(host.getUniquePortIds(constants.PORT_OPT_UDP))])
             self.poutput(tabulate.tabulate(verboseOutput, headers=headers, tablefmt="github"))
         else:
@@ -182,7 +182,7 @@ class InteractivePrompt(common.TerminalBase):
     def do_ports(self, inp):
         '''Lists unique ports. Usage "ports [default/tcp/udp/combined]"'''
         option = constants.PORT_OPT_DEFAULT
-        userOp = inp.strip().lower() 
+        userOp = inp.strip().lower()
         if(userOp in constants.PORT_OPTIONS):
             option = userOp
         filters = self.getFilters()
@@ -195,7 +195,7 @@ class InteractivePrompt(common.TerminalBase):
     @cmd2.with_argument_list
     def do_import(self, args: List[str]):
         '''Import additional nmap files or directories
-        
+
         Usage: import [filename/directory]
         '''
         if not args:
@@ -209,7 +209,7 @@ class InteractivePrompt(common.TerminalBase):
     @with_category(CMD_CAT_NMAP)
     def do_import_summary(self, inp):
         '''Displays list of imported files'''
-        
+
         self.pfeedback(helpers.getHeader("Successfully Imported Files"))
         if(len(self.nmapOutput.FilesImported) > 0):
             if self.verbose:
@@ -271,4 +271,4 @@ class InteractivePrompt(common.TerminalBase):
         for ip in self.nmapOutput.getAliveHosts(self.getFilters()):
             self.poutput(ip)
 
-    
+
