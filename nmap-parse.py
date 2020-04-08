@@ -102,7 +102,7 @@ def main():
             defaultFilters.onlyAlive = False
             defaultFilters.mustHavePorts = False
             helpers.printHosts(nmapOutput, filters=defaultFilters)
-            helpers.printUniquePorts(nmapOutput.getHostDictionary())
+            helpers.printUniquePorts(nmapOutput.getHostDictionary(), filters=defaultFilters)
 
         if options.ipList:
             helpers.printHosts(nmapOutput, filters=filters)
