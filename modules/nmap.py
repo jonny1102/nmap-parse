@@ -160,7 +160,7 @@ class NmapOutput():
                 pass
         return matchedHosts
 
-    def getAliveHosts(self, filters):
+    def getAliveHosts(self, filters=None):
         return [host.ip for host in self.getHosts(filters) if host.alive]
 
     def getServices(self, filters=None):
