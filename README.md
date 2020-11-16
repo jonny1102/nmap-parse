@@ -13,7 +13,7 @@ nmap-parse is  a python3 command line nmap XML parser. The default use of the to
 ## Prerequisites
 All prerequisites can be installed by running the following command:
 
-    pip install -r requirements.txt
+    pip3 install -r requirements.txt
 
 This script requires python3 and the following modules:
 * IPy, tabulate, bs4, cmd2, cmd2-submenu, colorama, requests, urllib3
@@ -123,7 +123,7 @@ Below are additional details regarding the flags available
 	* Begin interactive session, see below 
 * **-c / --combine**
 	* Will combine all nmap XML files into one single nmap-parse compatible XML file
-	* When dealing with tens/hundreds of nmap files, consolodation into a single file significantly improves nmap-parse's performance
+	* When dealing with tens/hundreds of nmap files, consolidation into a single file significantly improves nmap-parse's performance
 
 
 
