@@ -106,7 +106,7 @@ def getNmapFiltersString(filters):
         if filters.mustHavePorts:
             filterString += ("Must have ports filter [have_ports]: %s" % str(filters.mustHavePorts)) + os.linesep
         if filters.onlyAlive:
-            filterString += ("Alive filter [only_alive]: %s" % str(filters.onlyAlive)) + os.linesep
+            filterString += ("Up filter [only_up]: %s" % str(filters.onlyAlive)) + os.linesep
     return filterString
 
 def printNmapFilters(filters):

@@ -36,11 +36,11 @@ class NmapTerminal(TerminalBase):
     include_ports = True
     include_hostname = True
     have_ports = True
-    only_alive = True
+    only_up = True
     verbose = True
     raw = False
 
-    settable = [constants.OPT_INCLUDE_PORTS, constants.OPT_INCLUDE_HOSTNAME, constants.OPT_SERVICE_FILTER, constants.OPT_PORT_FILTER, constants.OPT_HOST_FILTER, constants.OPT_ALIVE, constants.OPT_HAVE_PORTS, constants.OPT_VERBOSE, constants.OPT_RAW]
+    settable = [constants.OPT_INCLUDE_PORTS, constants.OPT_INCLUDE_HOSTNAME, constants.OPT_SERVICE_FILTER, constants.OPT_PORT_FILTER, constants.OPT_HOST_FILTER, constants.OPT_UP, constants.OPT_HAVE_PORTS, constants.OPT_VERBOSE, constants.OPT_RAW]
 
     prompt = '\n\033[4m\033[1;30mnmap-parse\033[1;30m\033[0m\033[1;30m >\033[0;m '
     intro = """\nWelcome to nmap parse! Type ? to list commands
@@ -61,7 +61,7 @@ class NmapTerminal(TerminalBase):
         self.add_settable(cmd2.Settable(constants.OPT_SERVICE_FILTER, str, "Comma seperated list of services to show, e.g. \"http,ntp\"", self))
         self.add_settable(cmd2.Settable(constants.OPT_PORT_FILTER, str, "Comma seperated list of ports to show, e.g. \"80,123\"", self))
         self.add_settable(cmd2.Settable(constants.OPT_HOST_FILTER, str, "Comma seperated list of hosts to show, e.g. \"127.0.0.1,127.0.0.2\"", self))
-        self.add_settable(cmd2.Settable(constants.OPT_ALIVE, bool, "When enabled, any hosts which were down will be excluded from output  [ True / False ]", self))
+        self.add_settable(cmd2.Settable(constants.OPT_UP, bool, "When enabled, any hosts which were down will be excluded from output  [ True / False ]", self))
         self.add_settable(cmd2.Settable(constants.OPT_HAVE_PORTS, bool, "When enabled, hosts with no open ports are excluded from output  [ True / False ]", self))
         self.add_settable(cmd2.Settable(constants.OPT_VERBOSE, bool, "Shows verbose service information  [ True / False ]", self))
         self.add_settable(cmd2.Settable(constants.OPT_RAW, bool, "Shows raw output (no headings)  [ True / False ]", self))
@@ -326,8 +326,8 @@ class NmapTerminal(TerminalBase):
             self.verbose = True
         elif(option == constants.OPT_INCLUDE_PORTS):
             self.include_ports = True
-        elif(option == constants.OPT_ALIVE):
-            self.alive = True
+        elif(option == constants.OPT_UP):
+            self.only_up = True
         elif(option == constants.OPT_INCLUDE_HOSTNAME):
             self.include_hostname = True
         else:
@@ -356,7 +356,7 @@ class NmapTerminal(TerminalBase):
         filters.services = self.getServiceFilter()
         filters.ports = self.getPortFilter()
         filters.hosts = self.getHostFilter()
-        filters.onlyAlive = self.only_alive
+        filters.onlyAlive = self.only_up
         filters.mustHavePorts = self.have_ports
         return filters
     
