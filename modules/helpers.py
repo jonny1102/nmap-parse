@@ -115,7 +115,7 @@ def printNmapFilters(filters):
         hprint(filterString)
     
 
-def getHostListOutput(nmapOutput, includePorts = True, filters = None):
+def getHostListOutput(nmapOutput, includePorts = True, filters = None, includeHostname = False, isTable = False):
     '''Returns string representations of filtered hosts output'''
     if filters == None:
         filters = nmap.NmapFilters()
@@ -124,10 +124,26 @@ def getHostListOutput(nmapOutput, includePorts = True, filters = None):
     output.addHumn(getNmapFiltersString(filters))
     output.addHumn(getHeader('Matched IP list'))
 
+    headers = ["IP"]
+    if(includeHostname):
+        headers.append("Hostname")
+    for protocol in constants.PROTOCOLS:
+        headers.append(protocol)
+
+    tableRows = []
     # Get all hosts that are up and matched filters
     hostsOutput = []
     for host in nmapOutput.getHosts(filters=filters):
+        tableRow = [host.ip]
         curHostOutput = [host.ip, '']
+
+        if(includeHostname):
+            if(host.hostname == host.ip):
+                tableRow.append('')
+            else:
+                tableRow.append(host.hostname)
+                curHostOutput = [f"{host.ip} ({host.hostname})", '']
+
         for protocol in constants.PROTOCOLS: 
             fullPortsString = ''
             for port in [port for port in host.ports if port.protocol == protocol]:
@@ -138,13 +154,18 @@ def getHostListOutput(nmapOutput, includePorts = True, filters = None):
                     fullPortsString += ","
                 fullPortsString += tmpPortString
             curHostOutput[1] += "%s:[%s]  " % (protocol,fullPortsString)
+            tableRow.append(fullPortsString)
         hostsOutput.append(curHostOutput)
-    
-    for hostOutput in hostsOutput:
-        if includePorts:
-            output.addMain("%s\t%s" % (hostOutput[0], hostOutput[1]))
-        else:
-            output.addMain(hostOutput[0])
+        tableRows.append(tableRow)
+
+    if(isTable):
+        output.addMain(tabulate.tabulate(tableRows, headers=headers, tablefmt="github"))
+    else:
+        for hostOutput in hostsOutput:
+            if includePorts:
+                output.addMain("%s\t%s" % (hostOutput[0], hostOutput[1]))
+            else:
+                output.addMain(hostOutput[0])
     return output
 
 def printHosts(nmapOutput, includePorts = True, filters=None):

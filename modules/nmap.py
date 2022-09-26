@@ -53,10 +53,15 @@ class NmapOutput():
             for xHost in nmap_xml.findall('.//host'):
                 # Get IP address
                 ipv4Element = xHost.find("address[@addrtype='ipv4']")
-                if(ipv4Element == None):
-                    print("Host found without IPv4 address in " + nmapXmlFilename + ", skipping host", file=sys.stderr)
+                ipv6Element = xHost.find("address[@addrtype='ipv6']")
+                ip = None
+                if(ipv4Element is not None):
+                    ip = ipv4Element.get('addr')
+                if(ipv6Element is not None):
+                    ip = ipv6Element.get('addr')
+                if(ip is None):                
+                    print("Host found without IPv4 or IPv6 address in " + nmapXmlFilename + ", skipping host", file=sys.stderr)
                     continue
-                ip = ipv4Element.get('addr')
                 # Add host to dictionary
                 if ip not in self.Hosts:
                     self.Hosts[ip] = NmapHost(ip)
@@ -67,7 +72,8 @@ class NmapOutput():
 
                 # Attempt to get hostname
                 try:
-                    curHost.hostname = xHost.find('.//hostname').get('name') # hostname will be in nmap xml if PTR (reverse lookup) record present
+                    if(curHost.hostname == '' or curHost.hostname == ip):
+                        curHost.hostname = xHost.find('.//hostname').get('name') # hostname will be in nmap xml if PTR (reverse lookup) record present
                 except:
                     curHost.hostname = ip
 
