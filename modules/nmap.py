@@ -1,6 +1,4 @@
-import os
-import copy
-import ipaddress
+import os, sys, copy, ipaddress
 
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
@@ -54,7 +52,11 @@ class NmapOutput():
             # Find all hosts within xml file
             for xHost in nmap_xml.findall('.//host'):
                 # Get IP address
-                ip = xHost.find("address[@addrtype='ipv4']").get('addr')
+                ipv4Element = xHost.find("address[@addrtype='ipv4']")
+                if(ipv4Element == None):
+                    print("Host found without IPv4 address in " + nmapXmlFilename + ", skipping host", file=sys.stderr)
+                    continue
+                ip = ipv4Element.get('addr')
                 # Add host to dictionary
                 if ip not in self.Hosts:
                     self.Hosts[ip] = NmapHost(ip)

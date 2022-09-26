@@ -1,8 +1,7 @@
-import os, re, sys, subprocess, ipaddress, time
+import os, re, sys, ipaddress, time
 from subprocess import Popen,PIPE
-import xml.etree.ElementTree as ET
-import tabulate
 
+import tabulate
 from IPy import IP
 
 from modules import constants

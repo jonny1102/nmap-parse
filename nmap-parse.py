@@ -6,25 +6,18 @@
 # Created By: Jonathon Orr
 # Email: scripts@jonathonorr.co.uk
 
-from __future__ import print_function
-import os, glob, sys, re, subprocess
-import xml.etree.ElementTree as ET
+import sys
+
 from optparse import OptionParser
 
-from modules import nmap
-from modules import helpers
-from modules import settings
-from modules import constants
 from modules import interactive
+from modules import settings
+from modules import helpers
+from modules import nmap
 
-from modules.helpers import hprint, sprint, eprint, header
+VERSION = "0.2.0"
+RELEASE_DATE = "2022-09-26"
 
-VERSION = "0.1.3"
-RELEASE_DATE = "2019-02-25"
-
-def enterInteractiveShell(nmapOutput):
-    prompt = interactive.InteractivePrompt(nmapOutput)
-    prompt.cmdloop()
 
 def main():
     parser = OptionParser(usage="%prog [options] [list of nmap xml files or directories containing xml files]")
@@ -34,7 +27,7 @@ def main():
     parser.add_option("-l","--iplist", dest="ipList", action="store_true", help="Print plain list of matching IPs")
     parser.add_option("-a","--alive-hosts", dest="aliveHosts", action="store_true", help="Print plain list of all alive IPs")
     parser.add_option("-s","--service-list", dest="servicelist", action="store_true", help="Also print list of unique services with names")
-    parser.add_option("-S","--host-summary", dest="hostSummary", action="store_true", help="Show summary of scanned/alive hosts")
+    parser.add_option("-S","--host-summary", dest="hostSummary", action="store_true", help="Show summary of scanned/alive hosts (default)")
     parser.add_option("-v","--verbose", dest="verbose", action="store_true", help="Verbose service list")
     parser.add_option("-u", "--unique-ports", dest="uniquePorts", action="store_true", default=False, help="Print list of unique open ports")
     parser.add_option("-R","--raw", dest="raw", action="store_true", help="Only print raw output (no headers)")
@@ -60,7 +53,7 @@ def main():
 
     # Exit if no XML files found
     if nmapXmlFilenames == []:
-        eprint('No Nmap XML files found.\n')
+        print('No Nmap XML files found.\n')
         parser.print_help()
         sys.exit(1)
 
@@ -72,13 +65,13 @@ def main():
         if options.ports:
             portFilter = list(map(int,options.ports.split(',')))
             filters.ports = portFilter
-            hprint('Set port filter to %s' % portFilter)
+            helpers.hprint('Set port filter to %s' % portFilter)
 
         # Check if only specific ports should be parsed
         if options.svcFilter:
             serviceFilter = options.svcFilter.split(',')
             filters.services = serviceFilter
-            hprint('Set service filter to %s' % serviceFilter)
+            helpers.hprint('Set service filter to %s' % serviceFilter)
 
     # Parse nmap files
     nmapOutput = nmap.NmapOutput(nmapXmlFilenames)
@@ -87,7 +80,7 @@ def main():
 
     # Print import summary if requested
     if options.importedFiles:
-        header("Import Summary")
+        helpers.header("Import Summary")
         helpers.printImportSummary(nmapOutput, True)
 
     # Check if default flags were used
@@ -120,19 +113,15 @@ def main():
             helpers.executeCommands(options.cmd, nmapOutput, filters=filters)
 
         if settings.printHumanFriendlyText and (defaultFlags or options.hostSummary):
-            hprint("\nSummary\n-------")
-            hprint("Total hosts: %s" % str(len(nmapOutput.Hosts)))
-            hprint("Alive hosts: %s" % str(len(nmapOutput.getAliveHosts(filters))))
+            helpers.hprint("\nSummary\n-------")
+            helpers.hprint("Total hosts: %s" % str(len(nmapOutput.Hosts)))
+            helpers.hprint("Alive hosts: %s" % str(len(nmapOutput.getAliveHosts(filters))))
     else:
         enterInteractiveShell(nmapOutput)
 
+def enterInteractiveShell(nmapOutput):
+    prompt = interactive.NmapTerminal(nmapOutput)
+    sys.exit(prompt.cmdloop())
+
 if __name__ == "__main__":
-    # try:
-         main()
-    # except (KeyboardInterrupt, SystemExit):
-    #    print("User terminated")
-    # except Exception as ex:
-    #    print("An unknown error occurred")
-
-
-
+    main()
